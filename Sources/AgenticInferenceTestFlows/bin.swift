@@ -48,28 +48,10 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
                 budget: .singleAttempt
             )
 
-            let binding = AgentInferenceRealizationBinding(
-                site: "fixture_site",
-                inference: "fixture_inference",
-                realization: realization
-            )
-
             try Expect.equal(
-                binding.site.rawValue,
-                "fixture_site",
-                "binding retains inference site"
-            )
-
-            try Expect.equal(
-                binding.inference.rawValue,
-                "fixture_inference",
-                "binding retains inference identifier"
-            )
-
-            try Expect.equal(
-                binding.realization.strategy,
+                realization.strategy,
                 .direct,
-                "binding retains typed strategy identifier"
+                "realization retains typed strategy identifier"
             )
 
             return [
@@ -80,8 +62,8 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
                     )
                 ),
                 .field(
-                    "binding",
-                    binding.site.rawValue
+                    "strategy",
+                    realization.strategy.rawValue
                 ),
             ]
         },

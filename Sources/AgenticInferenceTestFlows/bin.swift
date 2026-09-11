@@ -100,5 +100,16 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
         ) {
             try AgentInferenceFlowTesting.runDetermineNextAction()
         },
+        TestFlow(
+            "assess-candidate-action",
+            tags: [
+                "inference",
+                "semantic",
+                "assessment",
+                "action",
+            ]
+        ) {
+            try AgentInferenceFlowTesting.runAssessCandidateAction()
+        },
     ]
 }

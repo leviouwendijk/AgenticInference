@@ -77,17 +77,32 @@ public struct AgentInferenceStrategyCatalog:
         ]
     )
 
-    public static func standard(
-        sampleEvaluator: any AgentInferenceCandidateEvaluating
+    public static func configured(
+        sampleEvaluator: (any AgentInferenceCandidateEvaluating)? = nil,
+        refinementGuide: (any AgentInferenceRefinementGuiding)? = nil
     ) -> Self {
-        Self(
-            strategies: [
-                .direct: DirectInferenceStrategy(),
-                .native_reasoning: NativeReasoningInferenceStrategy(),
-                .sampled: SampledInferenceStrategy(
-                    evaluator: sampleEvaluator
-                ),
-            ]
+        var strategies: [
+            AgentInferenceStrategyIdentifier:
+                any AgentInferenceStrategy
+        ] = [
+            .direct: DirectInferenceStrategy(),
+            .native_reasoning: NativeReasoningInferenceStrategy(),
+        ]
+
+        if let sampleEvaluator {
+            strategies[.sampled] = SampledInferenceStrategy(
+                evaluator: sampleEvaluator
+            )
+        }
+
+        if let refinementGuide {
+            strategies[.refining] = RefiningInferenceStrategy(
+                guide: refinementGuide
+            )
+        }
+
+        return Self(
+            strategies: strategies
         )
     }
 }

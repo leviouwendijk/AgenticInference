@@ -138,5 +138,19 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
             try await AgentInferenceExecutionFlowTests
                 .runSampled()
         },
+        TestFlow(
+            "refining-inference-execution",
+            tags: [
+                "inference",
+                "execution",
+                "strategy",
+                "refining",
+                "evaluation",
+                "multi-attempt",
+            ]
+        ) {
+            try await AgentInferenceExecutionFlowTests
+                .runRefining()
+        },
     ]
 }

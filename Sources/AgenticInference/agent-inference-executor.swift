@@ -12,16 +12,16 @@ public struct AgentInferenceExecutor:
         adapters: any AgentInferenceAdapterResolving,
         defaultAdapterIdentifier: AgentInferenceAdapterIdentifier? = nil,
         strategies: (any AgentInferenceStrategyResolving)? = nil,
-        sampleEvaluator: (any AgentInferenceCandidateEvaluating)? = nil
+        sampleEvaluator: (any AgentInferenceCandidateEvaluating)? = nil,
+        refinementGuide: (any AgentInferenceRefinementGuiding)? = nil
     ) {
         if let strategies {
             self.strategies = strategies
-        } else if let sampleEvaluator {
-            self.strategies = AgentInferenceStrategyCatalog.standard(
-                sampleEvaluator: sampleEvaluator
-            )
         } else {
-            self.strategies = AgentInferenceStrategyCatalog.standard
+            self.strategies = AgentInferenceStrategyCatalog.configured(
+                sampleEvaluator: sampleEvaluator,
+                refinementGuide: refinementGuide
+            )
         }
 
         self.attempts = AgentInferenceAttemptExecutor(

@@ -18,6 +18,7 @@ public struct NativeReasoningInferenceStrategy:
             inference,
             input: input,
             realization: realization,
+            priorAttempts: [],
             additionalRequirements: AgentModelRequirements(
                 capabilities: [
                     .reasoning,
@@ -34,6 +35,7 @@ public struct NativeReasoningInferenceStrategy:
                 attempts: [
                     attempt.record,
                 ],
+                budget: realization.budget,
                 metadata: realization.metadata
             )
         )

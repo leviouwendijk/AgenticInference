@@ -111,5 +111,18 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
         ) {
             try AgentInferenceFlowTesting.runAssessCandidateAction()
         },
+        TestFlow(
+            "inference-budget-accounting",
+            tags: [
+                "inference",
+                "execution",
+                "budget",
+                "record",
+                "multi-attempt",
+            ]
+        ) {
+            try await AgentInferenceExecutionFlowTests
+                .runBudgetAccounting()
+        },
     ]
 }

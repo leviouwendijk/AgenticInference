@@ -22,11 +22,17 @@ public struct AgentInferenceAttemptExecutor:
         _ inference: Inference.Type,
         input: Inference.Input,
         realization: AgentInferenceRealization,
+        priorAttempts: [AgentInferenceAttemptRecord] = [],
         additionalRequirements: AgentModelRequirements = AgentModelRequirements(
             capabilities: []
         ),
         attemptIndex: Int
     ) async throws -> AgentInferenceAttemptResult<Inference.Output> {
+        try realization.budget.validateNextAttempt(
+            index: attemptIndex,
+            priorAttempts: priorAttempts
+        )
+
         guard let adapterIdentifier =
             realization.adapter
             ?? defaultAdapterIdentifier
@@ -81,6 +87,7 @@ public struct AgentInferenceAttemptExecutor:
             record: AgentInferenceAttemptRecord(
                 index: attemptIndex,
                 adapter: adapter.identifier,
+                selection: selection,
                 route: result.route,
                 usage: result.response.usage,
                 metadata: metadata

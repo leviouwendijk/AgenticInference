@@ -18,6 +18,7 @@ public struct DirectInferenceStrategy:
             inference,
             input: input,
             realization: realization,
+            priorAttempts: [],
             additionalRequirements: AgentModelRequirements(
                 capabilities: []
             ),
@@ -32,6 +33,7 @@ public struct DirectInferenceStrategy:
                 attempts: [
                     attempt.record,
                 ],
+                budget: realization.budget,
                 metadata: realization.metadata
             )
         )

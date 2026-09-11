@@ -25,11 +25,9 @@ public struct AgentInferenceAttemptExecutor:
         priorAttempts: [AgentInferenceAttemptRecord] = [],
         additionalRequirements: AgentModelRequirements = AgentModelRequirements(
             capabilities: []
-        ),
-        attemptIndex: Int
+        )
     ) async throws -> AgentInferenceAttemptResult<Inference.Output> {
-        try realization.budget.validateNextAttempt(
-            index: attemptIndex,
+        let attemptIndex = try realization.budget.nextAttemptIndex(
             priorAttempts: priorAttempts
         )
 

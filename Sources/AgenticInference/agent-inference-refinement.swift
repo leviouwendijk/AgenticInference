@@ -1,3 +1,4 @@
+import Foundation
 import Primitives
 
 public struct AgentInferenceRefinementGuideIdentifier:
@@ -12,25 +13,104 @@ public struct AgentInferenceRefinementGuideIdentifier:
     }
 }
 
+public enum AgentInferenceRefinementInstructionsParsingError:
+    Error,
+    Sendable,
+    LocalizedError
+{
+    case empty
+
+    public var errorDescription: String? {
+        switch self {
+        case .empty:
+            return "Inference refinement instructions cannot be empty."
+        }
+    }
+}
+
+public struct AgentInferenceRefinementInstructions:
+    Sendable,
+    Codable,
+    Hashable
+{
+    public let value: String
+
+    private init(
+        parsed value: String
+    ) {
+        self.value = value
+    }
+
+    public init(
+        _ value: String
+    ) throws {
+        self = try Self.parse(
+            value
+        )
+    }
+
+    public static func parse(
+        _ value: String
+    ) throws -> Self {
+        let normalized = value.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+
+        guard !normalized.isEmpty else {
+            throw AgentInferenceRefinementInstructionsParsingError.empty
+        }
+
+        return Self(
+            parsed: normalized
+        )
+    }
+
+    public init(
+        from decoder: Decoder
+    ) throws {
+        let container = try decoder.singleValueContainer()
+        self = try Self.parse(
+            try container.decode(
+                String.self
+            )
+        )
+    }
+
+    public func encode(
+        to encoder: Encoder
+    ) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(
+            value
+        )
+    }
+}
+
+public enum AgentInferenceRefinementDirective:
+    Sendable,
+    Codable,
+    Hashable
+{
+    case stop
+    case continueWith(AgentInferenceRefinementInstructions)
+}
+
 public struct AgentInferenceRefinementDecision:
     Sendable,
     Codable,
     Hashable
 {
-    public var evaluation: AgentInferenceCandidateScore
-    public var shouldContinue: Bool
-    public var nextInstructions: String?
-    public var metadata: [String: String]
+    public let evaluation: AgentInferenceCandidateScore
+    public let directive: AgentInferenceRefinementDirective
+    public let metadata: [String: String]
 
     public init(
         evaluation: AgentInferenceCandidateScore,
-        shouldContinue: Bool,
-        nextInstructions: String? = nil,
+        directive: AgentInferenceRefinementDirective,
         metadata: [String: String] = [:]
     ) {
         self.evaluation = evaluation
-        self.shouldContinue = shouldContinue
-        self.nextInstructions = nextInstructions
+        self.directive = directive
         self.metadata = metadata
     }
 }

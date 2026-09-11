@@ -7,31 +7,11 @@ public enum RefiningInferenceStrategyError:
     LocalizedError
 {
     case noCandidatesProduced
-    case invalidScore(
-        guide: AgentInferenceRefinementGuideIdentifier,
-        attemptIndex: Int
-    )
-    case nextInstructionsUnavailable(
-        guide: AgentInferenceRefinementGuideIdentifier,
-        attemptIndex: Int
-    )
 
     public var errorDescription: String? {
         switch self {
         case .noCandidatesProduced:
             return "Refining inference did not produce any candidate outputs."
-
-        case .invalidScore(
-            let guide,
-            let attemptIndex
-        ):
-            return "Inference refinement guide '\(guide.rawValue)' returned a non-finite score for attempt \(attemptIndex)."
-
-        case .nextInstructionsUnavailable(
-            let guide,
-            let attemptIndex
-        ):
-            return "Inference refinement guide '\(guide.rawValue)' requested another iteration after attempt \(attemptIndex) without supplying next instructions."
         }
     }
 }
@@ -80,8 +60,7 @@ public struct RefiningInferenceStrategy:
                     priorAttempts: attemptRecords,
                     additionalRequirements: AgentModelRequirements(
                         capabilities: []
-                    ),
-                    attemptIndex: attemptIndex
+                    )
                 )
             } catch let error as AgentInferenceBudgetError {
                 switch error {
@@ -101,8 +80,7 @@ public struct RefiningInferenceStrategy:
                     termination = .token_usage_unavailable
                     break refinementLoop
 
-                case .attemptIndexMismatch(_, _),
-                     .maximumAttemptsReached(_, _):
+                case .maximumAttemptsReached(_, _):
                     throw error
                 }
             }
@@ -120,11 +98,13 @@ public struct RefiningInferenceStrategy:
                 realization: currentRealization
             )
 
-            guard decision.evaluation.score.isFinite else {
-                throw RefiningInferenceStrategyError.invalidScore(
-                    guide: guide.identifier,
-                    attemptIndex: attemptIndex
-                )
+            let continued: Bool
+            switch decision.directive {
+            case .stop:
+                continued = false
+
+            case .continueWith:
+                continued = true
             }
 
             refinementSteps.append(
@@ -132,7 +112,7 @@ public struct RefiningInferenceStrategy:
                     attemptIndex: attemptIndex,
                     guide: guide.identifier,
                     evaluation: decision.evaluation,
-                    continued: decision.shouldContinue,
+                    continued: continued,
                     metadata: decision.metadata
                 )
             )
@@ -159,42 +139,30 @@ public struct RefiningInferenceStrategy:
                 )
             }
 
-            guard decision.shouldContinue else {
+            switch decision.directive {
+            case .stop:
                 termination = .guide_stop
-                break
-            }
+                break refinementLoop
 
-            guard
-                attemptRecords.count
-                    < realization.budget.maximumAttempts
-            else {
-                termination = .maximum_attempts
-                break
-            }
+            case .continueWith(let nextInstructions):
+                guard
+                    attemptRecords.count
+                        < realization.budget.maximumAttempts
+                else {
+                    termination = .maximum_attempts
+                    break refinementLoop
+                }
 
-            guard
-                let nextInstructions = decision.nextInstructions,
-                !nextInstructions
-                    .trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    )
-                    .isEmpty
-            else {
-                throw RefiningInferenceStrategyError
-                    .nextInstructionsUnavailable(
-                        guide: guide.identifier,
-                        attemptIndex: attemptIndex
-                    )
+                currentRealization = realization
+                currentRealization.instructions =
+                    nextInstructions.value
+                currentRealization.metadata[
+                    "inference.refinement.guide"
+                ] = guide.identifier.rawValue
+                currentRealization.metadata[
+                    "inference.refinement.source_attempt"
+                ] = String(attemptIndex)
             }
-
-            currentRealization = realization
-            currentRealization.instructions = nextInstructions
-            currentRealization.metadata[
-                "inference.refinement.guide"
-            ] = guide.identifier.rawValue
-            currentRealization.metadata[
-                "inference.refinement.source_attempt"
-            ] = String(attemptIndex)
         }
 
         if termination == nil {

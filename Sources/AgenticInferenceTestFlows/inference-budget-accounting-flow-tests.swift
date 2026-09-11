@@ -183,7 +183,7 @@ extension AgentInferenceExecutionFlowTests {
             recorder: executionRecorder,
             response: response
         )
-        let budget = AgentInferenceBudget(
+        let budget = try AgentInferenceBudget(
             maximumAttempts: 1,
             maximumTotalTokens: 10
         )
@@ -262,87 +262,71 @@ extension AgentInferenceExecutionFlowTests {
             adapters: BudgetFixtureAdapterResolver()
         )
 
-        var expectedIndex: Int?
-        var actualIndex: Int?
+        var invalidAttemptBudgetRejected = false
 
         do {
-            _ = try await attemptExecutor.execute(
-                BudgetFixtureInference.self,
-                input: BudgetFixtureInference.Input(
-                    value: "out-of-order"
-                ),
-                realization: AgentInferenceRealization(
-                    strategy: .direct,
-                    modelSelection: .executor,
-                    instructions: "Do not execute out of order.",
-                    budget: AgentInferenceBudget(
-                        maximumAttempts: 2
-                    ),
-                    adapter: "budget_fixture_adapter"
-                ),
-                priorAttempts: [],
-                attemptIndex: 1
+            _ = try AgentInferenceBudget(
+                maximumAttempts: 0
             )
-        } catch AgentInferenceBudgetError.attemptIndexMismatch(
-            let expected,
-            let actual
-        ) {
-            expectedIndex = expected
-            actualIndex = actual
+        } catch AgentInferenceBudgetParsingError
+            .nonPositiveMaximumAttempts(_) {
+            invalidAttemptBudgetRejected = true
         }
 
         try Expect.equal(
-            expectedIndex,
-            0,
-            "attempt executor requires contiguous attempt indexes"
-        )
-        try Expect.equal(
-            actualIndex,
-            1,
-            "attempt executor reports the rejected out-of-order index"
+            invalidAttemptBudgetRejected,
+            true,
+            "invalid attempt limits are rejected at budget parsing"
         )
 
-        var blockedMaximumAttempts: Int?
+        let invalidBudgetData = Data(
+            """
+            {
+              "maximumAttempts": 0
+            }
+            """.utf8
+        )
+        var invalidBudgetDecodeRejected = false
 
         do {
-            _ = try await attemptExecutor.execute(
-                BudgetFixtureInference.self,
-                input: BudgetFixtureInference.Input(
-                    value: "blocked"
-                ),
-                realization: AgentInferenceRealization(
-                    strategy: .direct,
-                    modelSelection: .executor,
-                    instructions: "This attempt must not reach the model.",
-                    budget: AgentInferenceBudget(
-                        maximumAttempts: 0
-                    ),
-                    adapter: "budget_fixture_adapter"
-                ),
-                priorAttempts: [],
-                attemptIndex: 0
+            _ = try JSONDecoder().decode(
+                AgentInferenceBudget.self,
+                from: invalidBudgetData
             )
-        } catch AgentInferenceBudgetError.maximumAttemptsReached(
-            let maximumAttempts,
-            _
-        ) {
-            blockedMaximumAttempts = maximumAttempts
+        } catch AgentInferenceBudgetParsingError
+            .nonPositiveMaximumAttempts(_) {
+            invalidBudgetDecodeRejected = true
         }
 
         try Expect.equal(
-            blockedMaximumAttempts,
-            0,
-            "maximum-attempt budget blocks execution before model invocation"
+            invalidBudgetDecodeRejected,
+            true,
+            "budget decoding cannot bypass parsed invariants"
+        )
+
+        let validBudget = try AgentInferenceBudget(
+            maximumAttempts: 2,
+            maximumTotalTokens: 5,
+            maximumEstimatedUsd: 0
+        )
+        let validBudgetRoundTrip = try JSONDecoder().decode(
+            AgentInferenceBudget.self,
+            from: JSONEncoder().encode(
+                validBudget
+            )
+        )
+
+        try Expect.equal(
+            validBudgetRoundTrip,
+            validBudget,
+            "valid parsed budgets survive durable codec round trip"
         )
 
         let tokenRealization = AgentInferenceRealization(
             strategy: .direct,
             modelSelection: .executor,
             instructions: "Exercise token budget enforcement.",
-            budget: AgentInferenceBudget(
-                maximumAttempts: 2,
-                maximumTotalTokens: 5
-            ),
+            budget: validBudget,
             adapter: "budget_fixture_adapter"
         )
         let firstAttempt = try await attemptExecutor.execute(
@@ -351,8 +335,13 @@ extension AgentInferenceExecutionFlowTests {
                 value: "first"
             ),
             realization: tokenRealization,
-            priorAttempts: [],
-            attemptIndex: 0
+            priorAttempts: []
+        )
+
+        try Expect.equal(
+            firstAttempt.record.index,
+            0,
+            "attempt index is derived from prior attempt count"
         )
 
         var blockedTokenMaximum: Int?
@@ -367,8 +356,7 @@ extension AgentInferenceExecutionFlowTests {
                 realization: tokenRealization,
                 priorAttempts: [
                     firstAttempt.record,
-                ],
-                attemptIndex: 1
+                ]
             )
         } catch AgentInferenceBudgetError.maximumTotalTokensReached(
             let maximumTotalTokens,
@@ -394,7 +382,7 @@ extension AgentInferenceExecutionFlowTests {
         try Expect.equal(
             attemptInvocations.count,
             1,
-            "rejected index, attempt-limit, and token-limit attempts do not invoke the model"
+            "token-limit rejection occurs before another model invocation"
         )
 
         let unavailableRecorder = BudgetInvocationRecorder()
@@ -415,7 +403,7 @@ extension AgentInferenceExecutionFlowTests {
             strategy: .direct,
             modelSelection: .executor,
             instructions: "Exercise missing usage handling.",
-            budget: AgentInferenceBudget(
+            budget: try AgentInferenceBudget(
                 maximumAttempts: 2,
                 maximumTotalTokens: 10
             ),
@@ -427,8 +415,7 @@ extension AgentInferenceExecutionFlowTests {
                 value: "first"
             ),
             realization: unavailableRealization,
-            priorAttempts: [],
-            attemptIndex: 0
+            priorAttempts: []
         )
 
         var missingUsageBlocked = false
@@ -442,8 +429,7 @@ extension AgentInferenceExecutionFlowTests {
                 realization: unavailableRealization,
                 priorAttempts: [
                     unavailableFirst.record,
-                ],
-                attemptIndex: 1
+                ]
             )
         } catch AgentInferenceBudgetError.totalTokenUsageUnavailable {
             missingUsageBlocked = true
@@ -472,8 +458,11 @@ extension AgentInferenceExecutionFlowTests {
                 "true"
             ),
             .field(
-                "attempt_limit_enforced",
-                String(blockedMaximumAttempts == 0)
+                "budget_parse",
+                String(
+                    invalidAttemptBudgetRejected
+                        && invalidBudgetDecodeRejected
+                )
             ),
             .field(
                 "token_limit_enforced",

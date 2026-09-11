@@ -7,21 +7,11 @@ public enum SampledInferenceStrategyError:
     LocalizedError
 {
     case noSamplesProduced
-    case invalidScore(
-        evaluator: AgentInferenceEvaluatorIdentifier,
-        attemptIndex: Int
-    )
 
     public var errorDescription: String? {
         switch self {
         case .noSamplesProduced:
             return "Sampled inference did not produce any candidate outputs."
-
-        case .invalidScore(
-            let evaluator,
-            let attemptIndex
-        ):
-            return "Inference evaluator '\(evaluator.rawValue)' returned a non-finite score for attempt \(attemptIndex)."
         }
     }
 }
@@ -64,8 +54,7 @@ public struct SampledInferenceStrategy:
                     priorAttempts: attemptRecords,
                     additionalRequirements: AgentModelRequirements(
                         capabilities: []
-                    ),
-                    attemptIndex: attemptIndex
+                    )
                 )
             } catch AgentInferenceBudgetError.maximumTotalTokensReached {
                 break
@@ -84,19 +73,11 @@ public struct SampledInferenceStrategy:
                 attempt: attempt.record
             )
 
-            guard candidateScore.score.isFinite else {
-                throw SampledInferenceStrategyError.invalidScore(
-                    evaluator: evaluator.identifier,
-                    attemptIndex: attemptIndex
-                )
-            }
-
             evaluations.append(
                 AgentInferenceSampleEvaluation(
                     attemptIndex: attemptIndex,
                     evaluator: evaluator.identifier,
-                    score: candidateScore.score,
-                    metadata: candidateScore.metadata
+                    evaluation: candidateScore
                 )
             )
 

@@ -6,7 +6,6 @@ public protocol AgentInferenceAttemptExecuting: Sendable {
         input: Inference.Input,
         realization: AgentInferenceRealization,
         priorAttempts: [AgentInferenceAttemptRecord],
-        additionalRequirements: AgentModelRequirements,
-        attemptIndex: Int
+        additionalRequirements: AgentModelRequirements
     ) async throws -> AgentInferenceAttemptResult<Inference.Output>
 }

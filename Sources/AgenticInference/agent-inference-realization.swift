@@ -1,4 +1,5 @@
 import Agentic
+import Foundation
 import Primitives
 
 public struct AgentInferenceDemonstration:
@@ -21,27 +22,154 @@ public struct AgentInferenceDemonstration:
     }
 }
 
+public enum AgentInferenceBudgetParsingError:
+    Error,
+    Sendable,
+    LocalizedError
+{
+    case nonPositiveMaximumAttempts(Int)
+    case nonPositiveMaximumTotalTokens(Int)
+    case invalidMaximumEstimatedUsd(Double)
+
+    public var errorDescription: String? {
+        switch self {
+        case .nonPositiveMaximumAttempts(let value):
+            return "Inference maximum attempts must be positive; received \(value)."
+
+        case .nonPositiveMaximumTotalTokens(let value):
+            return "Inference maximum total tokens must be positive; received \(value)."
+
+        case .invalidMaximumEstimatedUsd(let value):
+            return "Inference maximum estimated USD must be finite and non-negative; received \(value)."
+        }
+    }
+}
+
 public struct AgentInferenceBudget:
     Sendable,
     Codable,
     Hashable
 {
-    public var maximumAttempts: Int
-    public var maximumTotalTokens: Int?
-    public var maximumEstimatedUsd: Double?
+    public let maximumAttempts: Int
+    public let maximumTotalTokens: Int?
+    public let maximumEstimatedUsd: Double?
 
-    public init(
-        maximumAttempts: Int,
-        maximumTotalTokens: Int? = nil,
-        maximumEstimatedUsd: Double? = nil
+    private enum CodingKeys: String, CodingKey {
+        case maximumAttempts
+        case maximumTotalTokens
+        case maximumEstimatedUsd
+    }
+
+    private init(
+        parsedMaximumAttempts maximumAttempts: Int,
+        maximumTotalTokens: Int?,
+        maximumEstimatedUsd: Double?
     ) {
         self.maximumAttempts = maximumAttempts
         self.maximumTotalTokens = maximumTotalTokens
         self.maximumEstimatedUsd = maximumEstimatedUsd
     }
 
+    public init(
+        maximumAttempts: Int,
+        maximumTotalTokens: Int? = nil,
+        maximumEstimatedUsd: Double? = nil
+    ) throws {
+        self = try Self.parse(
+            maximumAttempts: maximumAttempts,
+            maximumTotalTokens: maximumTotalTokens,
+            maximumEstimatedUsd: maximumEstimatedUsd
+        )
+    }
+
+    public static func parse(
+        maximumAttempts: Int,
+        maximumTotalTokens: Int? = nil,
+        maximumEstimatedUsd: Double? = nil
+    ) throws -> Self {
+        guard maximumAttempts > 0 else {
+            throw AgentInferenceBudgetParsingError
+                .nonPositiveMaximumAttempts(
+                    maximumAttempts
+                )
+        }
+
+        if let maximumTotalTokens {
+            guard maximumTotalTokens > 0 else {
+                throw AgentInferenceBudgetParsingError
+                    .nonPositiveMaximumTotalTokens(
+                        maximumTotalTokens
+                    )
+            }
+        }
+
+        if let maximumEstimatedUsd {
+            guard
+                maximumEstimatedUsd.isFinite,
+                maximumEstimatedUsd >= 0
+            else {
+                throw AgentInferenceBudgetParsingError
+                    .invalidMaximumEstimatedUsd(
+                        maximumEstimatedUsd
+                    )
+            }
+        }
+
+        return Self(
+            parsedMaximumAttempts: maximumAttempts,
+            maximumTotalTokens: maximumTotalTokens,
+            maximumEstimatedUsd: maximumEstimatedUsd
+        )
+    }
+
+    public init(
+        from decoder: Decoder
+    ) throws {
+        let container = try decoder.container(
+            keyedBy: CodingKeys.self
+        )
+
+        self = try Self.parse(
+            maximumAttempts: try container.decode(
+                Int.self,
+                forKey: .maximumAttempts
+            ),
+            maximumTotalTokens: try container.decodeIfPresent(
+                Int.self,
+                forKey: .maximumTotalTokens
+            ),
+            maximumEstimatedUsd: try container.decodeIfPresent(
+                Double.self,
+                forKey: .maximumEstimatedUsd
+            )
+        )
+    }
+
+    public func encode(
+        to encoder: Encoder
+    ) throws {
+        var container = encoder.container(
+            keyedBy: CodingKeys.self
+        )
+
+        try container.encode(
+            maximumAttempts,
+            forKey: .maximumAttempts
+        )
+        try container.encodeIfPresent(
+            maximumTotalTokens,
+            forKey: .maximumTotalTokens
+        )
+        try container.encodeIfPresent(
+            maximumEstimatedUsd,
+            forKey: .maximumEstimatedUsd
+        )
+    }
+
     public static let singleAttempt = Self(
-        maximumAttempts: 1
+        parsedMaximumAttempts: 1,
+        maximumTotalTokens: nil,
+        maximumEstimatedUsd: nil
     )
 }
 

@@ -206,7 +206,7 @@ private struct SampledFixtureEvaluator:
             score = 0.1
         }
 
-        return AgentInferenceCandidateScore(
+        return try AgentInferenceCandidateScore(
             score: score,
             metadata: [
                 "value": value,
@@ -248,7 +248,7 @@ extension AgentInferenceExecutionFlowTests {
             strategy: .sampled,
             modelSelection: .executor,
             instructions: "Generate multiple candidate outputs.",
-            budget: AgentInferenceBudget(
+            budget: try AgentInferenceBudget(
                 maximumAttempts: 3
             ),
             adapter: "sampled_fixture_adapter"
@@ -327,7 +327,7 @@ extension AgentInferenceExecutionFlowTests {
                 strategy: .sampled,
                 modelSelection: .executor,
                 instructions: "Stop sampling when the token budget is exhausted.",
-                budget: AgentInferenceBudget(
+                budget: try AgentInferenceBudget(
                     maximumAttempts: 3,
                     maximumTotalTokens: 4
                 ),

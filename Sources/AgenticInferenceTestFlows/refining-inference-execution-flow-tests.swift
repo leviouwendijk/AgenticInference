@@ -212,37 +212,43 @@ private struct RefiningFixtureGuide:
         switch value {
         case "ROUGH":
             return AgentInferenceRefinementDecision(
-                evaluation: AgentInferenceCandidateScore(
+                evaluation: try AgentInferenceCandidateScore(
                     score: 0.2,
                     metadata: [
                         "value": value,
                     ]
                 ),
-                shouldContinue: true,
-                nextInstructions: "Improve the ROUGH candidate into a BETTER candidate."
+                directive: .continueWith(
+                    try AgentInferenceRefinementInstructions(
+                        "Improve the ROUGH candidate into a BETTER candidate."
+                    )
+                )
             )
 
         case "BETTER":
             return AgentInferenceRefinementDecision(
-                evaluation: AgentInferenceCandidateScore(
+                evaluation: try AgentInferenceCandidateScore(
                     score: 0.7,
                     metadata: [
                         "value": value,
                     ]
                 ),
-                shouldContinue: true,
-                nextInstructions: "Improve the BETTER candidate into the FINAL candidate."
+                directive: .continueWith(
+                    try AgentInferenceRefinementInstructions(
+                        "Improve the BETTER candidate into the FINAL candidate."
+                    )
+                )
             )
 
         case "FINAL":
             return AgentInferenceRefinementDecision(
-                evaluation: AgentInferenceCandidateScore(
+                evaluation: try AgentInferenceCandidateScore(
                     score: 1.0,
                     metadata: [
                         "value": value,
                     ]
                 ),
-                shouldContinue: false
+                directive: .stop
             )
 
         default:
@@ -287,7 +293,7 @@ extension AgentInferenceExecutionFlowTests {
             strategy: .refining,
             modelSelection: .executor,
             instructions: "Produce the initial candidate.",
-            budget: AgentInferenceBudget(
+            budget: try AgentInferenceBudget(
                 maximumAttempts: 4
             ),
             adapter: "refining_fixture_adapter"
@@ -354,6 +360,22 @@ extension AgentInferenceExecutionFlowTests {
             ),
             "Produce the initial candidate.|Improve the ROUGH candidate into a BETTER candidate.|Improve the BETTER candidate into the FINAL candidate.",
             "refinement guide deterministically supplies the instructions for each subsequent attempt"
+        )
+
+        var emptyInstructionsRejected = false
+
+        do {
+            _ = try AgentInferenceRefinementInstructions(
+                "   "
+            )
+        } catch AgentInferenceRefinementInstructionsParsingError.empty {
+            emptyInstructionsRejected = true
+        }
+
+        try Expect.equal(
+            emptyInstructionsRejected,
+            true,
+            "refinement continuation instructions reject empty input at parsing"
         )
 
         let encodedRecord = try JSONEncoder().encode(

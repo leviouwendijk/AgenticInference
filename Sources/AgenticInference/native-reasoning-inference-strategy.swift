@@ -23,8 +23,7 @@ public struct NativeReasoningInferenceStrategy:
                 capabilities: [
                     .reasoning,
                 ]
-            ),
-            attemptIndex: 0
+            )
         )
 
         return AgentInferenceExecutionResult(

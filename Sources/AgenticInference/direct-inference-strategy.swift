@@ -21,8 +21,7 @@ public struct DirectInferenceStrategy:
             priorAttempts: [],
             additionalRequirements: AgentModelRequirements(
                 capabilities: []
-            ),
-            attemptIndex: 0
+            )
         )
 
         return AgentInferenceExecutionResult(

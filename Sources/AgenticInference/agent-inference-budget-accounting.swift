@@ -41,10 +41,6 @@ public enum AgentInferenceBudgetError:
     Sendable,
     LocalizedError
 {
-    case attemptIndexMismatch(
-        expected: Int,
-        actual: Int
-    )
     case maximumAttemptsReached(
         maximumAttempts: Int,
         requestedAttemptIndex: Int
@@ -60,12 +56,6 @@ public enum AgentInferenceBudgetError:
 
     public var errorDescription: String? {
         switch self {
-        case .attemptIndexMismatch(
-            let expected,
-            let actual
-        ):
-            return "Inference attempt index \(actual) is invalid; the next contiguous attempt index is \(expected)."
-
         case .maximumAttemptsReached(
             let maximumAttempts,
             let requestedAttemptIndex
@@ -88,18 +78,10 @@ public enum AgentInferenceBudgetError:
 }
 
 public extension AgentInferenceBudget {
-    func validateNextAttempt(
-        index: Int,
+    func nextAttemptIndex(
         priorAttempts: [AgentInferenceAttemptRecord]
-    ) throws {
-        let expectedIndex = priorAttempts.count
-
-        guard index == expectedIndex else {
-            throw AgentInferenceBudgetError.attemptIndexMismatch(
-                expected: expectedIndex,
-                actual: index
-            )
-        }
+    ) throws -> Int {
+        let index = priorAttempts.count
 
         guard index < maximumAttempts else {
             throw AgentInferenceBudgetError.maximumAttemptsReached(
@@ -109,7 +91,7 @@ public extension AgentInferenceBudget {
         }
 
         guard let maximumTotalTokens else {
-            return
+            return index
         }
 
         let usage = AgentInferenceBudgetUsage(
@@ -129,5 +111,7 @@ public extension AgentInferenceBudget {
                 consumedTotalTokens: consumedTotalTokens
             )
         }
+
+        return index
     }
 }

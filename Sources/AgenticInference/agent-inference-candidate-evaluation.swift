@@ -1,17 +1,101 @@
+import Foundation
+
+public enum AgentInferenceCandidateScoreParsingError:
+    Error,
+    Sendable,
+    LocalizedError
+{
+    case nonFinite(Double)
+
+    public var errorDescription: String? {
+        switch self {
+        case .nonFinite(let value):
+            return "Inference candidate score must be finite; received \(value)."
+        }
+    }
+}
+
 public struct AgentInferenceCandidateScore:
     Sendable,
     Codable,
     Hashable
 {
-    public var score: Double
-    public var metadata: [String: String]
+    public let score: Double
+    public let metadata: [String: String]
+
+    private enum CodingKeys: String, CodingKey {
+        case score
+        case metadata
+    }
+
+    private init(
+        parsedScore score: Double,
+        metadata: [String: String]
+    ) {
+        self.score = score
+        self.metadata = metadata
+    }
 
     public init(
         score: Double,
         metadata: [String: String] = [:]
-    ) {
-        self.score = score
-        self.metadata = metadata
+    ) throws {
+        self = try Self.parse(
+            score: score,
+            metadata: metadata
+        )
+    }
+
+    public static func parse(
+        score: Double,
+        metadata: [String: String] = [:]
+    ) throws -> Self {
+        guard score.isFinite else {
+            throw AgentInferenceCandidateScoreParsingError.nonFinite(
+                score
+            )
+        }
+
+        return Self(
+            parsedScore: score,
+            metadata: metadata
+        )
+    }
+
+    public init(
+        from decoder: Decoder
+    ) throws {
+        let container = try decoder.container(
+            keyedBy: CodingKeys.self
+        )
+
+        self = try Self.parse(
+            score: try container.decode(
+                Double.self,
+                forKey: .score
+            ),
+            metadata: try container.decodeIfPresent(
+                [String: String].self,
+                forKey: .metadata
+            ) ?? [:]
+        )
+    }
+
+    public func encode(
+        to encoder: Encoder
+    ) throws {
+        var container = encoder.container(
+            keyedBy: CodingKeys.self
+        )
+
+        try container.encode(
+            score,
+            forKey: .score
+        )
+        try container.encode(
+            metadata,
+            forKey: .metadata
+        )
     }
 }
 
@@ -31,21 +115,87 @@ public struct AgentInferenceSampleEvaluation:
     Codable,
     Hashable
 {
-    public var attemptIndex: Int
-    public var evaluator: AgentInferenceEvaluatorIdentifier
-    public var score: Double
-    public var metadata: [String: String]
+    public let attemptIndex: Int
+    public let evaluator: AgentInferenceEvaluatorIdentifier
+    public let evaluation: AgentInferenceCandidateScore
+
+    public var score: Double {
+        evaluation.score
+    }
+
+    public var metadata: [String: String] {
+        evaluation.metadata
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case attemptIndex
+        case evaluator
+        case score
+        case metadata
+    }
 
     public init(
         attemptIndex: Int,
         evaluator: AgentInferenceEvaluatorIdentifier,
-        score: Double,
-        metadata: [String: String] = [:]
+        evaluation: AgentInferenceCandidateScore
     ) {
         self.attemptIndex = attemptIndex
         self.evaluator = evaluator
-        self.score = score
-        self.metadata = metadata
+        self.evaluation = evaluation
+    }
+
+    public init(
+        from decoder: Decoder
+    ) throws {
+        let container = try decoder.container(
+            keyedBy: CodingKeys.self
+        )
+
+        self.init(
+            attemptIndex: try container.decode(
+                Int.self,
+                forKey: .attemptIndex
+            ),
+            evaluator: try container.decode(
+                AgentInferenceEvaluatorIdentifier.self,
+                forKey: .evaluator
+            ),
+            evaluation: try AgentInferenceCandidateScore.parse(
+                score: try container.decode(
+                    Double.self,
+                    forKey: .score
+                ),
+                metadata: try container.decodeIfPresent(
+                    [String: String].self,
+                    forKey: .metadata
+                ) ?? [:]
+            )
+        )
+    }
+
+    public func encode(
+        to encoder: Encoder
+    ) throws {
+        var container = encoder.container(
+            keyedBy: CodingKeys.self
+        )
+
+        try container.encode(
+            attemptIndex,
+            forKey: .attemptIndex
+        )
+        try container.encode(
+            evaluator,
+            forKey: .evaluator
+        )
+        try container.encode(
+            score,
+            forKey: .score
+        )
+        try container.encode(
+            metadata,
+            forKey: .metadata
+        )
     }
 }
 

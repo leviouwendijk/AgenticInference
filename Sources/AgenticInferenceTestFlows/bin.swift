@@ -78,5 +78,16 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
         ) {
             try await AgentInferenceExecutionFlowTests.runDirect()
         },
+        TestFlow(
+            "native-reasoning-inference-execution",
+            tags: [
+                "inference",
+                "execution",
+                "strategy",
+                "native-reasoning",
+            ]
+        ) {
+            try await AgentInferenceExecutionFlowTests.runNativeReasoning()
+        },
     ]
 }

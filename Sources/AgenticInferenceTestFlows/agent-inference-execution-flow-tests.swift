@@ -123,6 +123,7 @@ private struct FixtureModelInvoker:
             capabilities: [
                 .text,
                 .structured_output,
+                .reasoning,
             ]
         )
         let route = AgentModelRoute(
@@ -161,6 +162,127 @@ private enum FixtureInferenceExecutionError:
 }
 
 enum AgentInferenceExecutionFlowTests {
+    static func runNativeReasoning()
+        async throws
+        -> [TestFlowDiagnostic]
+    {
+        let recorder = FixtureInvocationRecorder()
+        let modelInvoker = FixtureModelInvoker(
+            recorder: recorder,
+            response: AgentResponse(
+                message: AgentMessage(
+                    role: .assistant,
+                    text: "\"REASONED\""
+                ),
+                stopReason: .end_turn,
+                usage: AgentUsage(
+                    inputTokens: 4,
+                    outputTokens: 3,
+                    totalTokens: 7
+                ),
+                metadata: [
+                    "fixture_response": "reasoning",
+                ]
+            )
+        )
+        let executor = AgentInferenceExecutor(
+            modelInvoker: modelInvoker,
+            adapters: FixtureInferenceAdapterResolver()
+        )
+        let realization = AgentInferenceRealization(
+            strategy: .native_reasoning,
+            modelSelection: .executor,
+            instructions: "Use native reasoning and return the fixture output.",
+            budget: .singleAttempt,
+            adapter: "fixture_adapter"
+        )
+
+        let result = try await executor.execute(
+            FixtureInference.self,
+            input: FixtureInference.Input(
+                value: "reason"
+            ),
+            realization: realization
+        )
+        let invocations = await recorder.snapshot()
+
+        try Expect.equal(
+            result.output,
+            "REASONED",
+            "native reasoning strategy restores typed inference output"
+        )
+        try Expect.equal(
+            result.record.strategy,
+            .native_reasoning,
+            "execution record retains native reasoning strategy"
+        )
+        try Expect.equal(
+            result.record.attempts.count,
+            1,
+            "native reasoning strategy performs exactly one attempt"
+        )
+        try Expect.equal(
+            invocations.count,
+            1,
+            "native reasoning strategy reaches model invoker once"
+        )
+        try Expect.equal(
+            invocations[0].selection.requirements.capabilities.contains(
+                .reasoning
+            ),
+            true,
+            "native reasoning strategy adds reasoning capability requirement"
+        )
+        try Expect.equal(
+            invocations[0].selection.requirements.capabilities.contains(
+                .structured_output
+            ),
+            true,
+            "native reasoning retains adapter capability requirements"
+        )
+        try Expect.equal(
+            invocations[0].metadata["inference.strategy"],
+            "native_reasoning",
+            "model invocation carries native reasoning strategy metadata"
+        )
+        try Expect.equal(
+            result.record.attempts[0].usage?.totalTokens,
+            7,
+            "native reasoning attempt records model usage"
+        )
+
+        return [
+            .field(
+                "output",
+                result.output
+            ),
+            .field(
+                "strategy",
+                result.record.strategy.rawValue
+            ),
+            .field(
+                "attempts",
+                String(result.record.attempts.count)
+            ),
+            .field(
+                "model_invocations",
+                String(invocations.count)
+            ),
+            .field(
+                "reasoning_required",
+                String(
+                    invocations[0]
+                        .selection
+                        .requirements
+                        .capabilities
+                        .contains(
+                            .reasoning
+                        )
+                )
+            ),
+        ]
+    }
+
     static func runDirect()
         async throws
         -> [TestFlowDiagnostic]

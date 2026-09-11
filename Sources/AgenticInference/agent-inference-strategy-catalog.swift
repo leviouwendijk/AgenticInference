@@ -73,6 +73,7 @@ public struct AgentInferenceStrategyCatalog:
     public static let standard = Self(
         strategies: [
             .direct: DirectInferenceStrategy(),
+            .native_reasoning: NativeReasoningInferenceStrategy(),
         ]
     )
 }

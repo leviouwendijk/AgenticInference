@@ -89,5 +89,16 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
         ) {
             try await AgentInferenceExecutionFlowTests.runNativeReasoning()
         },
+        TestFlow(
+            "determine-next-action",
+            tags: [
+                "inference",
+                "semantic",
+                "decision",
+                "action-selection",
+            ]
+        ) {
+            try AgentInferenceFlowTesting.runDetermineNextAction()
+        },
     ]
 }

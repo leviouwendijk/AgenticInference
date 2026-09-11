@@ -67,5 +67,16 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
                 ),
             ]
         },
+        TestFlow(
+            "direct-inference-execution",
+            tags: [
+                "inference",
+                "execution",
+                "strategy",
+                "direct",
+            ]
+        ) {
+            try await AgentInferenceExecutionFlowTests.runDirect()
+        },
     ]
 }

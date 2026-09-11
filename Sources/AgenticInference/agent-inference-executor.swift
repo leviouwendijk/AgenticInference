@@ -11,9 +11,19 @@ public struct AgentInferenceExecutor:
         modelInvoker: any AgentModelInvoking,
         adapters: any AgentInferenceAdapterResolving,
         defaultAdapterIdentifier: AgentInferenceAdapterIdentifier? = nil,
-        strategies: any AgentInferenceStrategyResolving = AgentInferenceStrategyCatalog.standard
+        strategies: (any AgentInferenceStrategyResolving)? = nil,
+        sampleEvaluator: (any AgentInferenceCandidateEvaluating)? = nil
     ) {
-        self.strategies = strategies
+        if let strategies {
+            self.strategies = strategies
+        } else if let sampleEvaluator {
+            self.strategies = AgentInferenceStrategyCatalog.standard(
+                sampleEvaluator: sampleEvaluator
+            )
+        } else {
+            self.strategies = AgentInferenceStrategyCatalog.standard
+        }
+
         self.attempts = AgentInferenceAttemptExecutor(
             modelInvoker: modelInvoker,
             adapters: adapters,

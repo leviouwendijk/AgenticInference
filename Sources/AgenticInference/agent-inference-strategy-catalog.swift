@@ -76,4 +76,18 @@ public struct AgentInferenceStrategyCatalog:
             .native_reasoning: NativeReasoningInferenceStrategy(),
         ]
     )
+
+    public static func standard(
+        sampleEvaluator: any AgentInferenceCandidateEvaluating
+    ) -> Self {
+        Self(
+            strategies: [
+                .direct: DirectInferenceStrategy(),
+                .native_reasoning: NativeReasoningInferenceStrategy(),
+                .sampled: SampledInferenceStrategy(
+                    evaluator: sampleEvaluator
+                ),
+            ]
+        )
+    }
 }

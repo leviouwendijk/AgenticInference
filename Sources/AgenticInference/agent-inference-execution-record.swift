@@ -38,6 +38,7 @@ public struct AgentInferenceExecutionRecord:
     public var strategy: AgentInferenceStrategyIdentifier
     public var attempts: [AgentInferenceAttemptRecord]
     public var budget: AgentInferenceBudget?
+    public var sampling: AgentInferenceSamplingRecord?
     public var metadata: [String: String]
 
     public init(
@@ -45,12 +46,14 @@ public struct AgentInferenceExecutionRecord:
         strategy: AgentInferenceStrategyIdentifier,
         attempts: [AgentInferenceAttemptRecord] = [],
         budget: AgentInferenceBudget? = nil,
+        sampling: AgentInferenceSamplingRecord? = nil,
         metadata: [String: String] = [:]
     ) {
         self.inference = inference
         self.strategy = strategy
         self.attempts = attempts
         self.budget = budget
+        self.sampling = sampling
         self.metadata = metadata
     }
 

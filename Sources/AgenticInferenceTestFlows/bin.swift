@@ -124,5 +124,19 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
             try await AgentInferenceExecutionFlowTests
                 .runBudgetAccounting()
         },
+        TestFlow(
+            "sampled-inference-execution",
+            tags: [
+                "inference",
+                "execution",
+                "strategy",
+                "sampled",
+                "evaluation",
+                "multi-attempt",
+            ]
+        ) {
+            try await AgentInferenceExecutionFlowTests
+                .runSampled()
+        },
     ]
 }

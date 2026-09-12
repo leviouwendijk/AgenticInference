@@ -1,0 +1,113 @@
+{
+  "failed" : 0,
+  "failed_names" : [
+
+  ],
+  "generated_at" : "2026-09-12T15:18:47Z",
+  "passed" : 8,
+  "results" : [
+    {
+      "display_name" : "inference-substrate",
+      "duration_seconds" : 0.00024509429931640625,
+      "name" : "inference-substrate",
+      "status" : "passed",
+      "tags" : [
+        "inference",
+        "realization",
+        "strategy"
+      ]
+    },
+    {
+      "display_name" : "direct-inference-execution",
+      "duration_seconds" : 0.0005640983581542969,
+      "name" : "direct-inference-execution",
+      "status" : "passed",
+      "tags" : [
+        "direct",
+        "execution",
+        "inference",
+        "strategy"
+      ]
+    },
+    {
+      "display_name" : "native-reasoning-inference-execution",
+      "duration_seconds" : 2.4080276489257812e-05,
+      "name" : "native-reasoning-inference-execution",
+      "status" : "passed",
+      "tags" : [
+        "execution",
+        "inference",
+        "native-reasoning",
+        "strategy"
+      ]
+    },
+    {
+      "display_name" : "determine-next-action",
+      "duration_seconds" : 0.00032007694244384766,
+      "name" : "determine-next-action",
+      "status" : "passed",
+      "tags" : [
+        "action-selection",
+        "decision",
+        "inference",
+        "semantic"
+      ]
+    },
+    {
+      "display_name" : "assess-candidate-action",
+      "duration_seconds" : 8.404254913330078e-05,
+      "name" : "assess-candidate-action",
+      "status" : "passed",
+      "tags" : [
+        "action",
+        "assessment",
+        "inference",
+        "semantic"
+      ]
+    },
+    {
+      "display_name" : "inference-budget-accounting",
+      "duration_seconds" : 0.0006099939346313477,
+      "name" : "inference-budget-accounting",
+      "status" : "passed",
+      "tags" : [
+        "budget",
+        "execution",
+        "inference",
+        "multi-attempt",
+        "record"
+      ]
+    },
+    {
+      "display_name" : "sampled-inference-execution",
+      "duration_seconds" : 0.00016999244689941406,
+      "name" : "sampled-inference-execution",
+      "status" : "passed",
+      "tags" : [
+        "evaluation",
+        "execution",
+        "inference",
+        "multi-attempt",
+        "sampled",
+        "strategy"
+      ]
+    },
+    {
+      "display_name" : "refining-inference-execution",
+      "duration_seconds" : 0.00043892860412597656,
+      "name" : "refining-inference-execution",
+      "status" : "passed",
+      "tags" : [
+        "evaluation",
+        "execution",
+        "inference",
+        "multi-attempt",
+        "refining",
+        "strategy"
+      ]
+    }
+  ],
+  "skipped" : 0,
+  "title" : "AgenticInference flow tests",
+  "total" : 8
+}

@@ -1,5 +1,5 @@
 import Schema
-import SchemaMacros
+import Macros
 
 public struct AssessCandidateAction: AgentInference {
     public struct Input:

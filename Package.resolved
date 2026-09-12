@@ -1,5 +1,5 @@
 {
-  "originHash" : "e27bdf3dd0e69abd04cfc60e6343cee2c284404325c32f5150778f4292d21409",
+  "originHash" : "808b09dcd3a141c431ff472bca9e412ef988e7bcd844e0b87bbfffa329c25c8e",
   "pins" : [
     {
       "identity" : "agentic",
@@ -65,6 +65,15 @@
       }
     },
     {
+      "identity" : "macros",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/leviouwendijk/Macros.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "44885d7ebddc4e9ced6f7cba0deac0ca98da20f1"
+      }
+    },
+    {
       "identity" : "primitives",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/leviouwendijk/Primitives.git",
@@ -80,15 +89,6 @@
       "state" : {
         "branch" : "master",
         "revision" : "703253bef3f4ae18e03bb35e68ac6db0d1bc584d"
-      }
-    },
-    {
-      "identity" : "schemamacros",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/leviouwendijk/SchemaMacros.git",
-      "state" : {
-        "branch" : "master",
-        "revision" : "2441b49a5159c375b094672a0ba0ae338829ec32"
       }
     },
     {

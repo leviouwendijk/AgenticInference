@@ -28,38 +28,18 @@ public struct AgentInferenceCandidateScore:
         case metadata
     }
 
-    private init(
-        parsedScore score: Double,
-        metadata: [String: String]
-    ) {
-        self.score = score
-        self.metadata = metadata
-    }
-
     public init(
         score: Double,
         metadata: [String: String] = [:]
     ) throws {
-        self = try Self.parse(
-            score: score,
-            metadata: metadata
-        )
-    }
-
-    public static func parse(
-        score: Double,
-        metadata: [String: String] = [:]
-    ) throws -> Self {
         guard score.isFinite else {
             throw AgentInferenceCandidateScoreParsingError.nonFinite(
                 score
             )
         }
 
-        return Self(
-            parsedScore: score,
-            metadata: metadata
-        )
+        self.score = score
+        self.metadata = metadata
     }
 
     public init(
@@ -69,7 +49,7 @@ public struct AgentInferenceCandidateScore:
             keyedBy: CodingKeys.self
         )
 
-        self = try Self.parse(
+        try self.init(
             score: try container.decode(
                 Double.self,
                 forKey: .score
@@ -160,7 +140,7 @@ public struct AgentInferenceSampleEvaluation:
                 AgentInferenceEvaluatorIdentifier.self,
                 forKey: .evaluator
             ),
-            evaluation: try AgentInferenceCandidateScore.parse(
+            evaluation: try AgentInferenceCandidateScore(
                 score: try container.decode(
                     Double.self,
                     forKey: .score

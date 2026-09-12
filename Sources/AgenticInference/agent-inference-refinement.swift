@@ -35,23 +35,9 @@ public struct AgentInferenceRefinementInstructions:
 {
     public let value: String
 
-    private init(
-        parsed value: String
-    ) {
-        self.value = value
-    }
-
     public init(
         _ value: String
     ) throws {
-        self = try Self.parse(
-            value
-        )
-    }
-
-    public static func parse(
-        _ value: String
-    ) throws -> Self {
         let normalized = value.trimmingCharacters(
             in: .whitespacesAndNewlines
         )
@@ -60,16 +46,14 @@ public struct AgentInferenceRefinementInstructions:
             throw AgentInferenceRefinementInstructionsParsingError.empty
         }
 
-        return Self(
-            parsed: normalized
-        )
+        self.value = normalized
     }
 
     public init(
         from decoder: Decoder
     ) throws {
         let container = try decoder.singleValueContainer()
-        self = try Self.parse(
+        try self.init(
             try container.decode(
                 String.self
             )

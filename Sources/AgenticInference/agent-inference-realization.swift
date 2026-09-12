@@ -61,7 +61,7 @@ public struct AgentInferenceBudget:
     }
 
     private init(
-        parsedMaximumAttempts maximumAttempts: Int,
+        validatedMaximumAttempts maximumAttempts: Int,
         maximumTotalTokens: Int?,
         maximumEstimatedUsd: Double?
     ) {
@@ -75,18 +75,6 @@ public struct AgentInferenceBudget:
         maximumTotalTokens: Int? = nil,
         maximumEstimatedUsd: Double? = nil
     ) throws {
-        self = try Self.parse(
-            maximumAttempts: maximumAttempts,
-            maximumTotalTokens: maximumTotalTokens,
-            maximumEstimatedUsd: maximumEstimatedUsd
-        )
-    }
-
-    public static func parse(
-        maximumAttempts: Int,
-        maximumTotalTokens: Int? = nil,
-        maximumEstimatedUsd: Double? = nil
-    ) throws -> Self {
         guard maximumAttempts > 0 else {
             throw AgentInferenceBudgetParsingError
                 .nonPositiveMaximumAttempts(
@@ -115,11 +103,9 @@ public struct AgentInferenceBudget:
             }
         }
 
-        return Self(
-            parsedMaximumAttempts: maximumAttempts,
-            maximumTotalTokens: maximumTotalTokens,
-            maximumEstimatedUsd: maximumEstimatedUsd
-        )
+        self.maximumAttempts = maximumAttempts
+        self.maximumTotalTokens = maximumTotalTokens
+        self.maximumEstimatedUsd = maximumEstimatedUsd
     }
 
     public init(
@@ -129,7 +115,7 @@ public struct AgentInferenceBudget:
             keyedBy: CodingKeys.self
         )
 
-        self = try Self.parse(
+        try self.init(
             maximumAttempts: try container.decode(
                 Int.self,
                 forKey: .maximumAttempts
@@ -167,7 +153,7 @@ public struct AgentInferenceBudget:
     }
 
     public static let singleAttempt = Self(
-        parsedMaximumAttempts: 1,
+        validatedMaximumAttempts: 1,
         maximumTotalTokens: nil,
         maximumEstimatedUsd: nil
     )

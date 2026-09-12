@@ -152,5 +152,5 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
             try await AgentInferenceExecutionFlowTests
                 .runRefining()
         },
-    ]
+    ] + agentInferenceRecoveryFlows
 }

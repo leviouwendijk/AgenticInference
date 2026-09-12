@@ -1,4 +1,5 @@
 import Agentic
+import AgenticRecovery
 import Foundation
 import Primitives
 
@@ -171,6 +172,7 @@ public struct AgentInferenceRealization:
     public var demonstrations: [AgentInferenceDemonstration]
     public var generation: AgentGenerationConfiguration
     public var budget: AgentInferenceBudget
+    public var recovery: Recovery.Policy?
     public var metadata: [String: String]
 
     public init(
@@ -178,6 +180,7 @@ public struct AgentInferenceRealization:
         modelSelection: AgentModelSelection,
         instructions: String,
         budget: AgentInferenceBudget,
+        recovery: Recovery.Policy? = nil,
         adapter: AgentInferenceAdapterIdentifier? = nil,
         demonstrations: [AgentInferenceDemonstration] = [],
         generation: AgentGenerationConfiguration = .default,
@@ -190,6 +193,7 @@ public struct AgentInferenceRealization:
         self.demonstrations = demonstrations
         self.generation = generation
         self.budget = budget
+        self.recovery = recovery
         self.metadata = metadata
     }
 }

@@ -416,14 +416,14 @@ extension AgentInferenceExecutionFlowTests {
             maximumAttempts: 2,
             maximumTotalTokens: 20
         )
-        let nextSemanticAttemptIndex = try semanticBudget.nextAttemptIndex(
+        let nextSemanticAttempt = try semanticBudget.nextAttempt(
             priorAttempts: [
                 recoveredAttempt,
             ]
         )
 
         try Expect.equal(
-            nextSemanticAttemptIndex,
+            nextSemanticAttempt.index,
             1,
             "two model invocations inside one attempt still consume only one semantic attempt"
         )

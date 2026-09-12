@@ -1,5 +1,31 @@
 import Foundation
 
+public struct AgentInferenceAttemptPermit:
+    Sendable,
+    Hashable
+{
+    public let index: Int
+
+    fileprivate init(
+        index: Int
+    ) {
+        self.index = index
+    }
+}
+
+public struct AgentInferenceInvocationPermit:
+    Sendable,
+    Hashable
+{
+    public let index: Int
+
+    fileprivate init(
+        index: Int
+    ) {
+        self.index = index
+    }
+}
+
 public struct AgentInferenceBudgetUsage:
     Sendable,
     Codable,
@@ -14,9 +40,11 @@ public struct AgentInferenceBudgetUsage:
     public var unreportedTokenInvocationCount: Int
 
     public init(
-        attempts: [AgentInferenceAttemptRecord]
+        attempts: [AgentInferenceAttemptRecord],
+        additionalInvocations: [AgentInferenceInvocationRecord] = []
     ) {
         let invocations = attempts.flatMap(\.invocations)
+            + additionalInvocations
 
         attemptCount = attempts.count
         invocationCount = invocations.count
@@ -85,13 +113,10 @@ public enum AgentInferenceBudgetError:
 }
 
 public extension AgentInferenceBudget {
-    /// Returns the index of the next semantic inference attempt.
-    ///
-    /// `maximumAttempts` bounds semantic strategy attempts. Token accounting,
-    /// however, includes every model invocation performed within those attempts.
-    func nextAttemptIndex(
+    /// Constructs permission to begin the next semantic inference attempt.
+    func nextAttempt(
         priorAttempts: [AgentInferenceAttemptRecord]
-    ) throws -> Int {
+    ) throws -> AgentInferenceAttemptPermit {
         let index = priorAttempts.count
 
         guard index < maximumAttempts else {
@@ -101,12 +126,28 @@ public extension AgentInferenceBudget {
             )
         }
 
+        return AgentInferenceAttemptPermit(
+            index: index
+        )
+    }
+
+    /// Constructs permission for another model invocation inside the current
+    /// semantic inference attempt.
+    func nextInvocation(
+        priorAttempts: [AgentInferenceAttemptRecord],
+        currentInvocations: [AgentInferenceInvocationRecord] = []
+    ) throws -> AgentInferenceInvocationPermit {
+        let index = currentInvocations.count
+
         guard let maximumTotalTokens else {
-            return index
+            return AgentInferenceInvocationPermit(
+                index: index
+            )
         }
 
         let usage = AgentInferenceBudgetUsage(
-            attempts: priorAttempts
+            attempts: priorAttempts,
+            additionalInvocations: currentInvocations
         )
 
         guard let consumedTotalTokens = usage.totalTokens else {
@@ -123,6 +164,8 @@ public extension AgentInferenceBudget {
             )
         }
 
-        return index
+        return AgentInferenceInvocationPermit(
+            index: index
+        )
     }
 }

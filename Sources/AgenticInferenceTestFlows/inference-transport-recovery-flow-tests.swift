@@ -1,0 +1,391 @@
+import Agentic
+import AgenticInference
+import AgenticRecovery
+import Foundation
+import TestFlows
+
+private struct TransportRecoveryFixtureInference: AgentInference {
+    struct Input:
+        Sendable,
+        Codable
+    {
+        let value: String
+    }
+
+    typealias Output = String
+
+    static let definition = AgentInferenceDefinition(
+        identifier: "fixture.transport_recovery",
+        purpose: "Prove bounded transport recovery within one semantic inference attempt."
+    )
+}
+
+private enum TransportRecoveryFixtureError:
+    Error,
+    Sendable,
+    LocalizedError
+{
+    case transient
+    case unknownAdapter(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .transient:
+            "fixture transport failed transiently"
+
+        case .unknownAdapter(let identifier):
+            "unknown fixture adapter: \(identifier)"
+        }
+    }
+}
+
+private struct TransportRecoveryFixtureAdapter:
+    AgentInferenceAdapter,
+    Sendable
+{
+    let identifier: AgentInferenceAdapterIdentifier =
+        "transport_recovery_fixture_adapter"
+
+    func prepare<Inference: AgentInference>(
+        _ inference: Inference.Type,
+        input: Inference.Input,
+        realization: AgentInferenceRealization
+    ) throws -> AgentInferenceAdaptation {
+        AgentInferenceAdaptation(
+            request: AgentRequest(
+                messages: [
+                    AgentMessage(
+                        role: .user,
+                        text: "transport recovery fixture request"
+                    ),
+                ],
+                generationConfiguration: realization.generation
+            )
+        )
+    }
+
+    func decode<Inference: AgentInference>(
+        _ inference: Inference.Type,
+        response: AgentResponse
+    ) throws -> Inference.Output {
+        try JSONDecoder().decode(
+            Inference.Output.self,
+            from: Data(
+                response.message.content.text.utf8
+            )
+        )
+    }
+}
+
+private struct TransportRecoveryFixtureAdapterResolver:
+    AgentInferenceAdapterResolving,
+    Sendable
+{
+    let adapter = TransportRecoveryFixtureAdapter()
+
+    func require(
+        _ identifier: AgentInferenceAdapterIdentifier
+    ) throws -> any AgentInferenceAdapter {
+        guard identifier == adapter.identifier else {
+            throw TransportRecoveryFixtureError.unknownAdapter(
+                identifier.rawValue
+            )
+        }
+
+        return adapter
+    }
+}
+
+private actor TransportRecoveryFixtureState {
+    private var count = 0
+
+    func nextInvocationIndex() -> Int {
+        let index = count
+        count += 1
+        return index
+    }
+
+    func invocationCount() -> Int {
+        count
+    }
+}
+
+private struct TransportRecoveryFixtureModelInvoker:
+    AgentModelInvoking,
+    Sendable
+{
+    let state: TransportRecoveryFixtureState
+
+    func buffered(
+        _ invocation: AgentModelInvocation
+    ) async throws -> AgentModelInvocationResult {
+        let index = await state.nextInvocationIndex()
+
+        if index == 0 {
+            throw TransportRecoveryFixtureError.transient
+        }
+
+        let encoded = try JSONEncoder().encode(
+            "RECOVERED"
+        )
+        let response = AgentResponse(
+            message: AgentMessage(
+                role: .assistant,
+                text: String(
+                    decoding: encoded,
+                    as: UTF8.self
+                )
+            ),
+            stopReason: .end_turn,
+            usage: AgentUsage(
+                inputTokens: 1,
+                outputTokens: 1,
+                totalTokens: 2
+            )
+        )
+        let profile = AgentModelProfile(
+            identifier: "transport_recovery_fixture_profile",
+            gatewayIdentifier: "transport_recovery_fixture_gateway",
+            model: "fixture",
+            purposes: [
+                invocation.selection.purpose,
+            ],
+            capabilities: [
+                .text,
+            ]
+        )
+        let route = AgentModelRoute(
+            purpose: invocation.selection.purpose,
+            profile: profile
+        )
+
+        return AgentModelInvocationResult(
+            response: response,
+            route: AgentModelRouteRecord(
+                route: route,
+                requestMetadata: invocation.metadata,
+                responseMetadata: response.metadata
+            )
+        )
+    }
+
+    func stream(
+        _ invocation: AgentModelInvocation
+    ) -> AsyncThrowingStream<AgentModelInvocationEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let result = try await buffered(
+                        invocation
+                    )
+                    continuation.yield(
+                        .completed(result)
+                    )
+                    continuation.finish()
+                } catch {
+                    continuation.finish(
+                        throwing: error
+                    )
+                }
+            }
+
+            continuation.onTermination = { _ in
+                task.cancel()
+            }
+        }
+    }
+}
+
+private struct TransportRecoveryFixtureClassifier:
+    AgentInferenceRecoveryClassifying,
+    Sendable
+{
+    func incident(
+        for error: any Error,
+        stage: Recovery.Stage,
+        inference: AgentInferenceIdentifier,
+        attemptIndex: Int,
+        invocationIndex: Int
+    ) -> Recovery.Incident? {
+        guard error is TransportRecoveryFixtureError,
+              stage == .execution
+        else {
+            return nil
+        }
+
+        return Recovery.Incident(
+            kind: .transport_transient,
+            stage: stage,
+            effectState: Recovery.EffectState.none,
+            retrySafety: .safe,
+            scope: .init(
+                kind: .inference,
+                identifier: inference.rawValue
+            ),
+            message: error.localizedDescription,
+            metadata: [
+                "attempt": String(attemptIndex),
+                "invocation": String(invocationIndex),
+            ]
+        )
+    }
+}
+
+let agentInferenceTransportRecoveryFlows: [TestFlow] = [
+    TestFlow(
+        "inference-transport-recovery",
+        tags: [
+            "agentic-inference",
+            "recovery",
+            "transport",
+            "retry",
+        ]
+    ) {
+        let state = TransportRecoveryFixtureState()
+        let executor = AgentInferenceExecutor(
+            modelInvoker: TransportRecoveryFixtureModelInvoker(
+                state: state
+            ),
+            adapters: TransportRecoveryFixtureAdapterResolver(),
+            defaultAdapterIdentifier: "transport_recovery_fixture_adapter",
+            recoveryClassifier: TransportRecoveryFixtureClassifier()
+        )
+        let policy = Recovery.Policy(
+            rules: [
+                .init(
+                    match: .init(
+                        kind: .transport_transient,
+                        stage: .execution,
+                        scope: .inference,
+                        effectState: Recovery.EffectState.none,
+                        retrySafety: .safe
+                    ),
+                    plan: .init(
+                        steps: [
+                            .init(
+                                action: .retry_same_operation,
+                                limit: .once
+                            ),
+                            .init(
+                                action: .propagate,
+                                limit: .once
+                            ),
+                        ]
+                    )
+                ),
+            ]
+        )
+        let realization = AgentInferenceRealization(
+            strategy: .direct,
+            modelSelection: .executor,
+            instructions: "Return the fixture output.",
+            budget: .singleAttempt,
+            recovery: policy
+        )
+
+        let result = try await executor.execute(
+            TransportRecoveryFixtureInference.self,
+            input: .init(
+                value: "fixture"
+            ),
+            realization: realization
+        )
+        let attempt = try Expect.notNil(
+            result.record.attempts.first,
+            "transport recovery still produces one semantic attempt"
+        )
+        let recovery = try Expect.notNil(
+            attempt.recoveries.first,
+            "successful mechanical retry is recorded"
+        )
+
+        try Expect.equal(
+            result.output,
+            "RECOVERED",
+            "transport retry eventually returns the semantic inference output"
+        )
+        try Expect.equal(
+            result.record.attempts.count,
+            1,
+            "mechanical recovery does not consume another semantic attempt"
+        )
+        try Expect.equal(
+            attempt.invocations.count,
+            2,
+            "failed transport plus successful retry are two model invocations"
+        )
+        let firstFailure: AgentInferenceInvocationOutcome.Failure?
+        switch attempt.invocations[0].outcome {
+        case .failed(let failure):
+            firstFailure = failure
+
+        case .succeeded:
+            firstFailure = nil
+        }
+
+        let recordedFailure = try Expect.notNil(
+            firstFailure,
+            "failed transport invocation has an explicit failure outcome"
+        )
+
+        try Expect.equal(
+            recordedFailure.incident?.kind,
+            .transport_transient,
+            "failed invocation retains its normalized recovery incident"
+        )
+
+        let secondSucceeded: Bool
+        switch attempt.invocations[1].outcome {
+        case .succeeded:
+            secondSucceeded = true
+
+        case .failed:
+            secondSucceeded = false
+        }
+
+        try Expect.equal(
+            secondSucceeded,
+            true,
+            "recovered model invocation has an explicit success outcome"
+        )
+        try Expect.equal(
+            recovery.outcome,
+            .recovered,
+            "recovery record reports successful recovery"
+        )
+        try Expect.equal(
+            recovery.attempts.count,
+            1,
+            "one retry action was required"
+        )
+        try Expect.equal(
+            recovery.attempts[0].action,
+            .retry_same_operation,
+            "policy selected retry_same_operation"
+        )
+        try Expect.equal(
+            await state.invocationCount(),
+            2,
+            "model invoker was called exactly twice"
+        )
+
+        return [
+            .field(
+                "semantic_attempts",
+                String(result.record.attempts.count)
+            ),
+            .field(
+                "model_invocations",
+                String(attempt.invocations.count)
+            ),
+            .field(
+                "recovery_action",
+                recovery.attempts[0].action.rawValue
+            ),
+            .field(
+                "recovery_outcome",
+                recovery.outcome.rawValue
+            ),
+        ]
+    },
+]

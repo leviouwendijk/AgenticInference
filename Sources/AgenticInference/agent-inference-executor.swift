@@ -13,7 +13,8 @@ public struct AgentInferenceExecutor:
         defaultAdapterIdentifier: AgentInferenceAdapterIdentifier? = nil,
         strategies: (any AgentInferenceStrategyResolving)? = nil,
         sampleEvaluator: (any AgentInferenceCandidateEvaluating)? = nil,
-        refinementGuide: (any AgentInferenceRefinementGuiding)? = nil
+        refinementGuide: (any AgentInferenceRefinementGuiding)? = nil,
+        recoveryClassifier: (any AgentInferenceRecoveryClassifying)? = nil
     ) {
         if let strategies {
             self.strategies = strategies
@@ -27,7 +28,8 @@ public struct AgentInferenceExecutor:
         self.attempts = AgentInferenceAttemptExecutor(
             modelInvoker: modelInvoker,
             adapters: adapters,
-            defaultAdapterIdentifier: defaultAdapterIdentifier
+            defaultAdapterIdentifier: defaultAdapterIdentifier,
+            recoveryClassifier: recoveryClassifier
         )
     }
 

@@ -58,6 +58,7 @@ public struct AgentInferenceAttemptExecutor:
                 additionalRequirements
             )
 
+        let invocationIndex = 0
         var metadata = realization.metadata
         metadata["inference.identifier"] =
             inference.definition.identifier.rawValue
@@ -67,6 +68,8 @@ public struct AgentInferenceAttemptExecutor:
             adapter.identifier.rawValue
         metadata["inference.attempt"] =
             String(attemptIndex)
+        metadata["inference.invocation"] =
+            String(invocationIndex)
 
         let result = try await modelInvoker.buffered(
             AgentModelInvocation(
@@ -79,6 +82,13 @@ public struct AgentInferenceAttemptExecutor:
             inference,
             response: result.response
         )
+        let invocation = AgentInferenceInvocationRecord(
+            index: invocationIndex,
+            selection: selection,
+            route: result.route,
+            usage: result.response.usage,
+            metadata: metadata
+        )
 
         return AgentInferenceAttemptResult(
             output: output,
@@ -88,6 +98,9 @@ public struct AgentInferenceAttemptExecutor:
                 selection: selection,
                 route: result.route,
                 usage: result.response.usage,
+                invocations: [
+                    invocation,
+                ],
                 metadata: metadata
             )
         )

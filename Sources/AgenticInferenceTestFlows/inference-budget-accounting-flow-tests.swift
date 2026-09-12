@@ -3,6 +3,15 @@ import AgenticInference
 import Foundation
 import TestFlows
 
+private struct LegacyBudgetAttemptRecord: Encodable {
+    let index: Int
+    let adapter: AgentInferenceAdapterIdentifier
+    let selection: AgentModelSelection
+    let route: AgentModelRouteRecord
+    let usage: AgentUsage?
+    let metadata: [String: String]
+}
+
 private struct BudgetFixtureInference: AgentInference {
     struct Input:
         Sendable,
@@ -341,7 +350,82 @@ extension AgentInferenceExecutionFlowTests {
         try Expect.equal(
             firstAttempt.record.index,
             0,
-            "attempt index is derived from prior attempt count"
+            "semantic attempt index is derived from prior semantic attempt count"
+        )
+        try Expect.equal(
+            firstAttempt.record.invocations.count,
+            1,
+            "one successful semantic attempt records one model invocation"
+        )
+
+        let legacyAttemptData = try JSONEncoder().encode(
+            LegacyBudgetAttemptRecord(
+                index: firstAttempt.record.index,
+                adapter: firstAttempt.record.adapter,
+                selection: firstAttempt.record.selection,
+                route: firstAttempt.record.route,
+                usage: firstAttempt.record.usage,
+                metadata: firstAttempt.record.metadata
+            )
+        )
+        let migratedLegacyAttempt = try JSONDecoder().decode(
+            AgentInferenceAttemptRecord.self,
+            from: legacyAttemptData
+        )
+
+        try Expect.equal(
+            migratedLegacyAttempt.invocations.count,
+            1,
+            "legacy attempt records synthesize their historical successful invocation"
+        )
+
+        var recoveredAttempt = firstAttempt.record
+        recoveredAttempt.invocations.append(
+            AgentInferenceInvocationRecord(
+                index: 1,
+                selection: firstAttempt.record.selection,
+                route: firstAttempt.record.route,
+                usage: firstAttempt.record.usage,
+                metadata: firstAttempt.record.metadata
+            )
+        )
+
+        let recoveredUsage = AgentInferenceBudgetUsage(
+            attempts: [
+                recoveredAttempt,
+            ]
+        )
+
+        try Expect.equal(
+            recoveredUsage.attemptCount,
+            1,
+            "mechanical recovery does not create another semantic inference attempt"
+        )
+        try Expect.equal(
+            recoveredUsage.invocationCount,
+            2,
+            "mechanical recovery can add another model invocation inside one semantic attempt"
+        )
+        try Expect.equal(
+            recoveredUsage.reportedTotalTokens,
+            10,
+            "token accounting includes every model invocation inside the semantic attempt"
+        )
+
+        let semanticBudget = try AgentInferenceBudget(
+            maximumAttempts: 2,
+            maximumTotalTokens: 20
+        )
+        let nextSemanticAttemptIndex = try semanticBudget.nextAttemptIndex(
+            priorAttempts: [
+                recoveredAttempt,
+            ]
+        )
+
+        try Expect.equal(
+            nextSemanticAttemptIndex,
+            1,
+            "two model invocations inside one attempt still consume only one semantic attempt"
         )
 
         var blockedTokenMaximum: Int?
@@ -456,6 +540,14 @@ extension AgentInferenceExecutionFlowTests {
             .field(
                 "record_codec",
                 "true"
+            ),
+            .field(
+                "semantic_attempts",
+                String(recoveredUsage.attemptCount)
+            ),
+            .field(
+                "model_invocations",
+                String(recoveredUsage.invocationCount)
             ),
             .field(
                 "budget_parse",

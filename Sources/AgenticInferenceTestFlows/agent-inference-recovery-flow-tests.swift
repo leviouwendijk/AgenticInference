@@ -20,7 +20,7 @@ let agentInferenceRecoveryFlows: [TestFlow] = [
                         kind: .structured_output_invalid,
                         stage: .decoding,
                         scope: .inference,
-                        effectState: .none,
+                        effectState: Recovery.EffectState.none,
                         retrySafety: .safe
                     ),
                     plan: .init(

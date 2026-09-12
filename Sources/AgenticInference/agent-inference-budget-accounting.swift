@@ -5,30 +5,37 @@ public struct AgentInferenceBudgetUsage:
     Codable,
     Hashable
 {
+    /// Number of semantic inference attempts.
     public var attemptCount: Int
+
+    /// Number of actual model invocations across those semantic attempts.
+    public var invocationCount: Int
     public var reportedTotalTokens: Int
-    public var unreportedTokenAttemptCount: Int
+    public var unreportedTokenInvocationCount: Int
 
     public init(
         attempts: [AgentInferenceAttemptRecord]
     ) {
+        let invocations = attempts.flatMap(\.invocations)
+
         attemptCount = attempts.count
-        reportedTotalTokens = attempts.reduce(
+        invocationCount = invocations.count
+        reportedTotalTokens = invocations.reduce(
             into: 0
-        ) { total, attempt in
-            total += attempt.usage?.totalTokens ?? 0
+        ) { total, invocation in
+            total += invocation.usage?.totalTokens ?? 0
         }
-        unreportedTokenAttemptCount = attempts.reduce(
+        unreportedTokenInvocationCount = invocations.reduce(
             into: 0
-        ) { count, attempt in
-            if attempt.usage?.totalTokens == nil {
+        ) { count, invocation in
+            if invocation.usage?.totalTokens == nil {
                 count += 1
             }
         }
     }
 
     public var totalTokens: Int? {
-        guard unreportedTokenAttemptCount == 0 else {
+        guard unreportedTokenInvocationCount == 0 else {
             return nil
         }
 
@@ -47,7 +54,7 @@ public enum AgentInferenceBudgetError:
     )
     case totalTokenUsageUnavailable(
         maximumTotalTokens: Int,
-        priorAttemptCount: Int
+        priorInvocationCount: Int
     )
     case maximumTotalTokensReached(
         maximumTotalTokens: Int,
@@ -60,24 +67,28 @@ public enum AgentInferenceBudgetError:
             let maximumAttempts,
             let requestedAttemptIndex
         ):
-            return "Inference attempt \(requestedAttemptIndex) exceeds the configured maximum of \(maximumAttempts) attempt(s)."
+            return "Inference attempt \(requestedAttemptIndex) exceeds the configured maximum of \(maximumAttempts) semantic attempt(s)."
 
         case .totalTokenUsageUnavailable(
             let maximumTotalTokens,
-            let priorAttemptCount
+            let priorInvocationCount
         ):
-            return "Cannot safely continue inference under a \(maximumTotalTokens)-token budget because token usage is unavailable for one or more of the \(priorAttemptCount) prior attempt(s)."
+            return "Cannot safely continue inference under a \(maximumTotalTokens)-token budget because token usage is unavailable for one or more of the \(priorInvocationCount) prior model invocation(s)."
 
         case .maximumTotalTokensReached(
             let maximumTotalTokens,
             let consumedTotalTokens
         ):
-            return "Inference has consumed \(consumedTotalTokens) tokens and reached the configured maximum of \(maximumTotalTokens); another attempt is not allowed."
+            return "Inference has consumed \(consumedTotalTokens) tokens and reached the configured maximum of \(maximumTotalTokens); another model invocation is not allowed."
         }
     }
 }
 
 public extension AgentInferenceBudget {
+    /// Returns the index of the next semantic inference attempt.
+    ///
+    /// `maximumAttempts` bounds semantic strategy attempts. Token accounting,
+    /// however, includes every model invocation performed within those attempts.
     func nextAttemptIndex(
         priorAttempts: [AgentInferenceAttemptRecord]
     ) throws -> Int {
@@ -101,7 +112,7 @@ public extension AgentInferenceBudget {
         guard let consumedTotalTokens = usage.totalTokens else {
             throw AgentInferenceBudgetError.totalTokenUsageUnavailable(
                 maximumTotalTokens: maximumTotalTokens,
-                priorAttemptCount: priorAttempts.count
+                priorInvocationCount: usage.invocationCount
             )
         }
 

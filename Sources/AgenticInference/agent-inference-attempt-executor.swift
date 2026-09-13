@@ -42,6 +42,26 @@ private enum AgentInferenceInvocationMode {
     )
 }
 
+private func recoveryIncidentCapturingEvidence(
+    _ incident: Recovery.Incident,
+    error: any Error
+) -> Recovery.Incident {
+    guard incident.report == nil else {
+        return incident
+    }
+
+    return Recovery.Incident(
+        capturing: error,
+        kind: incident.kind,
+        stage: incident.stage,
+        effectState: incident.effectState,
+        retrySafety: incident.retrySafety,
+        scope: incident.scope,
+        message: incident.message,
+        metadata: incident.metadata
+    )
+}
+
 private func classifyAgentInferenceRecoveryIncident(
     for error: any Error,
     stage: Recovery.Stage,
@@ -61,15 +81,25 @@ private func classifyAgentInferenceRecoveryIncident(
             invocationIndex: invocationIndex
        )
     {
-        return incident
+        return recoveryIncidentCapturingEvidence(
+            incident,
+            error: error
+        )
     }
 
-    return fallback?.incident(
+    guard let incident = fallback?.incident(
         for: error,
         stage: stage,
         inference: inference,
         attemptIndex: attemptIndex,
         invocationIndex: invocationIndex
+    ) else {
+        return nil
+    }
+
+    return recoveryIncidentCapturingEvidence(
+        incident,
+        error: error
     )
 }
 
@@ -244,6 +274,7 @@ public struct AgentInferenceAttemptExecutor:
                 ):
                     recovery.attempts.append(
                         Recovery.Attempt(
+                            capturing: error,
                             number: permit.number,
                             action: recovery.decision.action,
                             outcome: .failed,
@@ -333,6 +364,7 @@ public struct AgentInferenceAttemptExecutor:
                 {
                     recovery.attempts.append(
                         Recovery.Attempt(
+                            capturing: error,
                             number: permit.number,
                             action: recovery.decision.action,
                             outcome: .failed,

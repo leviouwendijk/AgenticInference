@@ -16,7 +16,7 @@
       "location" : "https://github.com/leviouwendijk/AgenticRecovery.git",
       "state" : {
         "branch" : "master",
-        "revision" : "ef6301b4026afccc1b2557bbdb300dde869a5a26"
+        "revision" : "c6b6d820cdbbdd868d12965665b28ed159f5e7e3"
       }
     },
     {
@@ -62,6 +62,15 @@
       "state" : {
         "branch" : "master",
         "revision" : "30ec6798f883b91f697d060bb001e0e4f7a09225"
+      }
+    },
+    {
+      "identity" : "errors",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/leviouwendijk/Errors.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "72d3aaf1203e3443df34ac4bef61683d5285eb25"
       }
     },
     {

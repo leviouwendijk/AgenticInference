@@ -418,6 +418,16 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             .decoding,
             "structured-output failure retains decoding stage"
         )
+        let decodeReport = try Expect.notNil(
+            recovery.incident.report,
+            "structured-output incident retains the captured decode ErrorReport"
+        )
+
+        try Expect.equal(
+            decodeReport.presentation.message,
+            recovery.incident.message,
+            "decode ErrorReport preserves the normalized incident presentation"
+        )
         try Expect.equal(
             recovery.attempts.count,
             1,

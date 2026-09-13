@@ -115,13 +115,22 @@ private struct TransportRecoveryFixtureModelInvoker:
     Sendable
 {
     let state: TransportRecoveryFixtureState
+    let failureCount: Int
+
+    init(
+        state: TransportRecoveryFixtureState,
+        failureCount: Int = 1
+    ) {
+        self.state = state
+        self.failureCount = failureCount
+    }
 
     func buffered(
         _ invocation: AgentModelInvocation
     ) async throws -> AgentModelInvocationResult {
         let index = await state.nextInvocationIndex()
 
-        if index == 0 {
+        if index < failureCount {
             throw TransportRecoveryFixtureError.transient
         }
 
@@ -333,6 +342,16 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             .transport_transient,
             "failed invocation retains its normalized recovery incident"
         )
+        let incidentReport = try Expect.notNil(
+            recordedFailure.incident?.report,
+            "normalized transport incident retains structured error evidence"
+        )
+
+        try Expect.equal(
+            incidentReport.presentation.message,
+            recordedFailure.incident?.message,
+            "captured transport report preserves the classified failure presentation"
+        )
 
         let secondSucceeded: Bool
         switch attempt.invocations[1].outcome {
@@ -385,6 +404,145 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             .field(
                 "recovery_outcome",
                 recovery.outcome.rawValue
+            ),
+            .field(
+                "incident_report",
+                String(recordedFailure.incident?.report != nil)
+            ),
+        ]
+    },
+    TestFlow(
+        "inference-transport-recovery-error-evidence",
+        tags: [
+            "agentic-inference",
+            "recovery",
+            "transport",
+            "errors",
+            "evidence",
+            "exhaustion",
+        ]
+    ) {
+        let state = TransportRecoveryFixtureState()
+        let executor = AgentInferenceExecutor(
+            modelInvoker: TransportRecoveryFixtureModelInvoker(
+                state: state,
+                failureCount: 2
+            ),
+            adapters: TransportRecoveryFixtureAdapterResolver(),
+            defaultAdapterIdentifier: "transport_recovery_fixture_adapter",
+            recoveryClassifier: TransportRecoveryFixtureClassifier()
+        )
+        let policy = Recovery.Policy(
+            rules: [
+                .init(
+                    match: .init(
+                        kind: .transport_transient,
+                        stage: .execution,
+                        scope: .inference,
+                        effectState: Recovery.EffectState.none,
+                        retrySafety: .safe
+                    ),
+                    plan: .init(
+                        steps: [
+                            .init(
+                                action: .retry_same_operation,
+                                limit: .once
+                            ),
+                            .init(
+                                action: .propagate,
+                                limit: .once
+                            ),
+                        ]
+                    )
+                ),
+            ]
+        )
+        let realization = AgentInferenceRealization(
+            strategy: .direct,
+            modelSelection: .executor,
+            instructions: "Return the fixture output.",
+            budget: .singleAttempt,
+            recovery: policy
+        )
+
+        let failureRecord: Recovery.Record?
+
+        do {
+            _ = try await executor.execute(
+                TransportRecoveryFixtureInference.self,
+                input: .init(
+                    value: "fixture"
+                ),
+                realization: realization
+            )
+            failureRecord = nil
+        } catch let error as AgentInferenceRecoveryError {
+            failureRecord = error.record
+        } catch {
+            throw error
+        }
+
+        let record = try Expect.notNil(
+            failureRecord,
+            "exhausted transport recovery surfaces a structured recovery record"
+        )
+        let incidentReport = try Expect.notNil(
+            record.incident.report,
+            "exhausted recovery retains the initial incident ErrorReport"
+        )
+
+        try Expect.equal(
+            record.outcome,
+            .exhausted,
+            "bounded retry exhaustion is represented explicitly"
+        )
+        try Expect.equal(
+            record.attempts.count,
+            1,
+            "one permitted retry produces one recorded recovery attempt"
+        )
+        try Expect.equal(
+            record.attempts[0].outcome,
+            .failed,
+            "the exhausted retry remains a failed recovery attempt"
+        )
+
+        let attemptReport = try Expect.notNil(
+            record.attempts[0].report,
+            "failed retry retains the ErrorReport for the recovery-attempt failure"
+        )
+
+        try Expect.equal(
+            attemptReport,
+            incidentReport,
+            "repeated equivalent transport failures retain equivalent structured evidence"
+        )
+        try Expect.equal(
+            await state.invocationCount(),
+            2,
+            "exhaustion performs exactly the initial invocation and one bounded retry"
+        )
+
+        return [
+            .field(
+                "outcome",
+                record.outcome.rawValue
+            ),
+            .field(
+                "recovery_attempts",
+                String(record.attempts.count)
+            ),
+            .field(
+                "incident_report",
+                String(record.incident.report != nil)
+            ),
+            .field(
+                "attempt_report",
+                String(record.attempts[0].report != nil)
+            ),
+            .field(
+                "model_invocations",
+                String(await state.invocationCount())
             ),
         ]
     },

@@ -156,4 +156,5 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
         + agentInferenceRecoveryFlows
         + agentInferenceTransportRecoveryFlows
         + agentInferenceOutputRepairRecoveryFlows
+        + agentInferenceStrategyRecoveryTransparencyFlows
 }

@@ -81,9 +81,13 @@ public struct SampledInferenceStrategy:
                 )
             )
 
-            if selectedScore == nil
-                || candidateScore.score > selectedScore!
-            {
+            if let currentSelectedScore = selectedScore {
+                if candidateScore.score > currentSelectedScore {
+                    selectedScore = candidateScore.score
+                    selectedAttemptIndex = attemptIndex
+                    selectedOutput = attempt.output
+                }
+            } else {
                 selectedScore = candidateScore.score
                 selectedAttemptIndex = attemptIndex
                 selectedOutput = attempt.output

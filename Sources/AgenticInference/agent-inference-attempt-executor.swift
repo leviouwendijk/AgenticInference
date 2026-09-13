@@ -42,6 +42,37 @@ private enum AgentInferenceInvocationMode {
     )
 }
 
+private func classifyAgentInferenceRecoveryIncident(
+    for error: any Error,
+    stage: Recovery.Stage,
+    adapter: any AgentInferenceAdapter,
+    fallback: (any AgentInferenceRecoveryClassifying)?,
+    inference: AgentInferenceIdentifier,
+    attemptIndex: Int,
+    invocationIndex: Int
+) -> Recovery.Incident? {
+    if let adapterClassifier =
+        adapter as? any AgentInferenceRecoveryClassifying,
+       let incident = adapterClassifier.incident(
+            for: error,
+            stage: stage,
+            inference: inference,
+            attemptIndex: attemptIndex,
+            invocationIndex: invocationIndex
+       )
+    {
+        return incident
+    }
+
+    return fallback?.incident(
+        for: error,
+        stage: stage,
+        inference: inference,
+        attemptIndex: attemptIndex,
+        invocationIndex: invocationIndex
+    )
+}
+
 public struct AgentInferenceAttemptExecutor:
     AgentInferenceAttemptExecuting,
     Sendable
@@ -160,9 +191,11 @@ public struct AgentInferenceAttemptExecutor:
                 )
             } catch {
                 let message = error.localizedDescription
-                let incident = recoveryClassifier?.incident(
+                let incident = classifyAgentInferenceRecoveryIncident(
                     for: error,
                     stage: .execution,
+                    adapter: adapter,
+                    fallback: recoveryClassifier,
                     inference: inference.definition.identifier,
                     attemptIndex: attemptIndex,
                     invocationIndex: invocationIndex
@@ -282,9 +315,11 @@ public struct AgentInferenceAttemptExecutor:
                 )
             } catch {
                 let message = error.localizedDescription
-                let incident = recoveryClassifier?.incident(
+                let incident = classifyAgentInferenceRecoveryIncident(
                     for: error,
                     stage: .decoding,
+                    adapter: adapter,
+                    fallback: recoveryClassifier,
                     inference: inference.definition.identifier,
                     attemptIndex: attemptIndex,
                     invocationIndex: invocationIndex

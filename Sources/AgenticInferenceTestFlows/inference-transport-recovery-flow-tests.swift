@@ -502,7 +502,7 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             "one permitted retry produces one recorded recovery attempt"
         )
         try Expect.equal(
-            record.attempts[0].outcome,
+            record.attempts[0].status,
             .failed,
             "the exhausted retry remains a failed recovery attempt"
         )

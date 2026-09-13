@@ -277,7 +277,6 @@ public struct AgentInferenceAttemptExecutor:
                             capturing: error,
                             number: permit.number,
                             action: recovery.decision.action,
-                            outcome: .failed,
                             message: message
                         )
                     )
@@ -326,7 +325,7 @@ public struct AgentInferenceAttemptExecutor:
                     Recovery.Attempt(
                         number: permit.number,
                         action: recovery.decision.action,
-                        outcome: .recovered
+                        status: .succeeded
                     )
                 )
                 recoveries.append(
@@ -367,7 +366,6 @@ public struct AgentInferenceAttemptExecutor:
                             capturing: error,
                             number: permit.number,
                             action: recovery.decision.action,
-                            outcome: .failed,
                             message: message
                         )
                     )
@@ -447,7 +445,7 @@ public struct AgentInferenceAttemptExecutor:
                     Recovery.Attempt(
                         number: permit.number,
                         action: recovery.decision.action,
-                        outcome: .recovered
+                        status: .succeeded
                     )
                 )
                 recoveries.append(

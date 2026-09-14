@@ -465,7 +465,7 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             recovery: policy
         )
 
-        let terminalFailure: AgentInferenceAttemptFailure?
+        let terminalFailure: AgentInferenceExecutionFailure?
 
         do {
             _ = try await executor.execute(
@@ -476,15 +476,23 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
                 realization: realization
             )
             terminalFailure = nil
-        } catch let error as AgentInferenceAttemptFailure {
+        } catch let error as AgentInferenceExecutionFailure {
             terminalFailure = error
         } catch {
             throw error
         }
 
-        let failure = try Expect.notNil(
+        let executionFailure = try Expect.notNil(
             terminalFailure,
-            "exhausted transport recovery preserves the terminal semantic attempt"
+            "exhausted transport recovery preserves the terminal inference execution"
+        )
+        let failure = executionFailure.attempt
+        try Expect.equal(
+            executionFailure.record.attempts,
+            [
+                failure.record,
+            ],
+            "direct execution failure retains the exact terminal semantic attempt"
         )
         let record = try Expect.notNil(
             failure.recovery,
@@ -597,7 +605,7 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             budget: .singleAttempt
         )
 
-        let terminalFailure: AgentInferenceAttemptFailure?
+        let terminalFailure: AgentInferenceExecutionFailure?
 
         do {
             _ = try await executor.execute(
@@ -608,15 +616,23 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
                 realization: realization
             )
             terminalFailure = nil
-        } catch let error as AgentInferenceAttemptFailure {
+        } catch let error as AgentInferenceExecutionFailure {
             terminalFailure = error
         } catch {
             throw error
         }
 
-        let failure = try Expect.notNil(
+        let executionFailure = try Expect.notNil(
             terminalFailure,
-            "classified transport propagation preserves the failed semantic attempt"
+            "classified transport propagation preserves the failed inference execution"
+        )
+        let failure = executionFailure.attempt
+        try Expect.equal(
+            executionFailure.record.attempts,
+            [
+                failure.record,
+            ],
+            "direct execution failure retains the exact propagated semantic attempt"
         )
         let record = try Expect.notNil(
             failure.recovery,

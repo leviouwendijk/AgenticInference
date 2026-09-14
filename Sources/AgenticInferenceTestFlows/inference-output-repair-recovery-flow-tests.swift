@@ -507,7 +507,7 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             budget: .singleAttempt
         )
 
-        let terminalFailure: AgentInferenceAttemptFailure?
+        let terminalFailure: AgentInferenceExecutionFailure?
 
         do {
             _ = try await executor.execute(
@@ -518,15 +518,23 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
                 realization: realization
             )
             terminalFailure = nil
-        } catch let error as AgentInferenceAttemptFailure {
+        } catch let error as AgentInferenceExecutionFailure {
             terminalFailure = error
         } catch {
             throw error
         }
 
-        let failure = try Expect.notNil(
+        let executionFailure = try Expect.notNil(
             terminalFailure,
-            "classified decoding propagation preserves the failed semantic attempt"
+            "classified decoding propagation preserves the failed inference execution"
+        )
+        let failure = executionFailure.attempt
+        try Expect.equal(
+            executionFailure.record.attempts,
+            [
+                failure.record,
+            ],
+            "direct execution failure retains the exact decoding semantic attempt"
         )
         let record = try Expect.notNil(
             failure.recovery,
@@ -713,7 +721,7 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             recovery: policy
         )
 
-        let terminalFailure: AgentInferenceAttemptFailure?
+        let terminalFailure: AgentInferenceExecutionFailure?
 
         do {
             _ = try await executor.execute(
@@ -724,15 +732,23 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
                 realization: realization
             )
             terminalFailure = nil
-        } catch let error as AgentInferenceAttemptFailure {
+        } catch let error as AgentInferenceExecutionFailure {
             terminalFailure = error
         } catch {
             throw error
         }
 
-        let failure = try Expect.notNil(
+        let executionFailure = try Expect.notNil(
             terminalFailure,
-            "repair blocked by token budget preserves the failed semantic attempt"
+            "repair blocked by token budget preserves the failed inference execution"
+        )
+        let failure = executionFailure.attempt
+        try Expect.equal(
+            executionFailure.record.attempts,
+            [
+                failure.record,
+            ],
+            "budget-blocked execution retains the exact paid semantic attempt"
         )
         let recovery = try Expect.notNil(
             failure.recovery,

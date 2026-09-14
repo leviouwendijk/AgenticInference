@@ -14,15 +14,27 @@ public struct DirectInferenceStrategy:
         realization: AgentInferenceRealization,
         attempts: any AgentInferenceAttemptExecuting
     ) async throws -> AgentInferenceExecutionResult<Inference.Output> {
-        let attempt = try await attempts.execute(
-            inference,
-            input: input,
-            realization: realization,
-            priorAttempts: [],
-            additionalRequirements: AgentModelRequirements(
-                capabilities: []
+        let attempt: AgentInferenceAttemptResult<Inference.Output>
+
+        do {
+            attempt = try await attempts.execute(
+                inference,
+                input: input,
+                realization: realization,
+                priorAttempts: [],
+                additionalRequirements: AgentModelRequirements(
+                    capabilities: []
+                )
             )
-        )
+        } catch let failure as AgentInferenceAttemptFailure {
+            throw AgentInferenceExecutionFailure(
+                attempt: failure,
+                inference: inference.definition.identifier,
+                strategy: identifier,
+                budget: realization.budget,
+                metadata: realization.metadata
+            )
+        }
 
         return AgentInferenceExecutionResult(
             output: attempt.output,

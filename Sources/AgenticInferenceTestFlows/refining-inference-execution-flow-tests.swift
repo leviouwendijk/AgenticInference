@@ -392,6 +392,113 @@ extension AgentInferenceExecutionFlowTests {
             "refining execution provenance survives durable codec round trip"
         )
 
+        let failureState = RefiningFixtureState(
+            outputs: [
+                "ROUGH",
+            ]
+        )
+        let failureExecutor = AgentInferenceExecutor(
+            modelInvoker: RefiningFixtureModelInvoker(
+                state: failureState
+            ),
+            adapters: RefiningFixtureAdapterResolver(),
+            refinementGuide: guide
+        )
+        let executionFailure: AgentInferenceExecutionFailure?
+
+        do {
+            _ = try await failureExecutor.execute(
+                RefiningFixtureInference.self,
+                input: .init(
+                    value: "terminal-failure"
+                ),
+                realization: AgentInferenceRealization(
+                    strategy: .refining,
+                    modelSelection: .executor,
+                    instructions: "Preserve completed refinement work when a later attempt fails.",
+                    budget: try AgentInferenceBudget(
+                        maximumAttempts: 2
+                    ),
+                    adapter: "refining_fixture_adapter"
+                )
+            )
+            executionFailure = nil
+        } catch let error as AgentInferenceExecutionFailure {
+            executionFailure = error
+        } catch {
+            throw error
+        }
+
+        let refiningFailure = try Expect.notNil(
+            executionFailure,
+            "refining terminal attempt failure becomes canonical execution failure"
+        )
+        let partialRefinement = try Expect.notNil(
+            refiningFailure.record.refinement,
+            "refining failure preserves completed guide state"
+        )
+
+        try Expect.equal(
+            refiningFailure.record.strategy,
+            .refining,
+            "refining failure preserves strategy identity"
+        )
+        try Expect.equal(
+            refiningFailure.record.attempts.count,
+            2,
+            "refining failure preserves completed and terminal failed attempts"
+        )
+        try Expect.equal(
+            refiningFailure.record.attempts[0].failure == nil,
+            true,
+            "first refining attempt remains a successful candidate"
+        )
+        try Expect.equal(
+            refiningFailure.record.attempts[1],
+            refiningFailure.attempt.record,
+            "terminal refining attempt is preserved exactly"
+        )
+        try Expect.equal(
+            refiningFailure.attempt.record.index,
+            1,
+            "refining failure preserves the failed semantic attempt index"
+        )
+        try Expect.equal(
+            partialRefinement.steps.count,
+            1,
+            "refining failure preserves only guide decisions actually completed"
+        )
+        try Expect.equal(
+            partialRefinement.selectedAttemptIndex,
+            0,
+            "refining failure preserves the best completed candidate"
+        )
+        try Expect.equal(
+            partialRefinement.lastAttemptIndex,
+            1,
+            "refining failure identifies the terminal failed attempt as the last executed attempt"
+        )
+        try Expect.equal(
+            partialRefinement.termination,
+            .attempt_failed,
+            "refining provenance explicitly distinguishes terminal attempt failure"
+        )
+        try Expect.equal(
+            refiningFailure.record.budgetUsage.invocationCount,
+            2,
+            "refining failed execution accounts for successful and failed provider invocations"
+        )
+        try Expect.equal(
+            refiningFailure.record.budgetUsage.reportedTotalTokens,
+            2,
+            "refining failed execution preserves reported spend from completed provider work"
+        )
+        try Expect.equal(
+            refiningFailure.record.budgetUsage.unreportedTokenInvocationCount,
+            1,
+            "failed refining provider invocation remains explicit when usage was never reported"
+        )
+
         return [
             .field(
                 "output",
@@ -419,6 +526,10 @@ extension AgentInferenceExecutionFlowTests {
                     .termination
                     .rawValue
                     ?? "missing"
+            ),
+            .field(
+                "failed_execution_attempts",
+                String(refiningFailure.record.attempts.count)
             ),
         ]
     }

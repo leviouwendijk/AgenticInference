@@ -147,6 +147,7 @@ public enum AgentInferenceRefinementTermination:
     case maximum_attempts
     case maximum_total_tokens
     case token_usage_unavailable
+    case attempt_failed
 }
 
 public struct AgentInferenceRefinementRecord:

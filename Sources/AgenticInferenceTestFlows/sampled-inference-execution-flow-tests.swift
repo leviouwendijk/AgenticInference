@@ -362,6 +362,103 @@ extension AgentInferenceExecutionFlowTests {
             "budget rejection prevents an additional model invocation"
         )
 
+        let failureState = SampledFixtureState(
+            outputs: [
+                "BEST",
+            ]
+        )
+        let failureExecutor = AgentInferenceExecutor(
+            modelInvoker: SampledFixtureModelInvoker(
+                state: failureState
+            ),
+            adapters: SampledFixtureAdapterResolver(),
+            sampleEvaluator: evaluator
+        )
+        let executionFailure: AgentInferenceExecutionFailure?
+
+        do {
+            _ = try await failureExecutor.execute(
+                SampledFixtureInference.self,
+                input: .init(
+                    value: "terminal-failure"
+                ),
+                realization: AgentInferenceRealization(
+                    strategy: .sampled,
+                    modelSelection: .executor,
+                    instructions: "Preserve completed samples when a later sample fails.",
+                    budget: try AgentInferenceBudget(
+                        maximumAttempts: 2
+                    ),
+                    adapter: "sampled_fixture_adapter"
+                )
+            )
+            executionFailure = nil
+        } catch let error as AgentInferenceExecutionFailure {
+            executionFailure = error
+        } catch {
+            throw error
+        }
+
+        let sampledFailure = try Expect.notNil(
+            executionFailure,
+            "sampled terminal attempt failure becomes canonical execution failure"
+        )
+        let partialSampling = try Expect.notNil(
+            sampledFailure.record.sampling,
+            "sampled failure preserves completed evaluation state"
+        )
+
+        try Expect.equal(
+            sampledFailure.record.strategy,
+            .sampled,
+            "sampled failure preserves strategy identity"
+        )
+        try Expect.equal(
+            sampledFailure.record.attempts.count,
+            2,
+            "sampled failure preserves completed and terminal failed attempts"
+        )
+        try Expect.equal(
+            sampledFailure.record.attempts[0].failure == nil,
+            true,
+            "first sampled attempt remains a successful candidate"
+        )
+        try Expect.equal(
+            sampledFailure.record.attempts[1],
+            sampledFailure.attempt.record,
+            "terminal sampled attempt is preserved exactly"
+        )
+        try Expect.equal(
+            sampledFailure.attempt.record.index,
+            1,
+            "sampled failure preserves the failed semantic attempt index"
+        )
+        try Expect.equal(
+            partialSampling.evaluations.count,
+            1,
+            "sampled failure preserves only evaluations actually completed"
+        )
+        try Expect.equal(
+            partialSampling.selectedAttemptIndex,
+            0,
+            "sampled failure preserves the best completed candidate"
+        )
+        try Expect.equal(
+            sampledFailure.record.budgetUsage.invocationCount,
+            2,
+            "sampled failed execution accounts for successful and failed provider invocations"
+        )
+        try Expect.equal(
+            sampledFailure.record.budgetUsage.reportedTotalTokens,
+            2,
+            "sampled failed execution preserves reported spend from completed provider work"
+        )
+        try Expect.equal(
+            sampledFailure.record.budgetUsage.unreportedTokenInvocationCount,
+            1,
+            "failed provider invocation remains explicit when token usage was never reported"
+        )
+
         return [
             .field(
                 "output",
@@ -382,6 +479,10 @@ extension AgentInferenceExecutionFlowTests {
             .field(
                 "token_capped_attempts",
                 String(cappedResult.record.attempts.count)
+            ),
+            .field(
+                "failed_execution_attempts",
+                String(sampledFailure.record.attempts.count)
             ),
         ]
     }

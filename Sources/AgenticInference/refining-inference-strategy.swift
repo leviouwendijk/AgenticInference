@@ -62,6 +62,26 @@ public struct RefiningInferenceStrategy:
                         capabilities: []
                     )
                 )
+            } catch let failure as AgentInferenceAttemptFailure {
+                let refinement = selectedAttemptIndex.map {
+                    AgentInferenceRefinementRecord(
+                        guide: guide.identifier,
+                        steps: refinementSteps,
+                        selectedAttemptIndex: $0,
+                        lastAttemptIndex: failure.record.index,
+                        termination: .attempt_failed
+                    )
+                }
+
+                throw AgentInferenceExecutionFailure(
+                    attempt: failure,
+                    inference: inference.definition.identifier,
+                    strategy: identifier,
+                    priorAttempts: attemptRecords,
+                    budget: realization.budget,
+                    refinement: refinement,
+                    metadata: realization.metadata
+                )
             } catch let error as AgentInferenceBudgetError {
                 switch error {
                 case .maximumTotalTokensReached(_, _):

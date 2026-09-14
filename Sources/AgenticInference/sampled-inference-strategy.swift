@@ -56,6 +56,24 @@ public struct SampledInferenceStrategy:
                         capabilities: []
                     )
                 )
+            } catch let failure as AgentInferenceAttemptFailure {
+                let sampling = selectedAttemptIndex.map {
+                    AgentInferenceSamplingRecord(
+                        evaluator: evaluator.identifier,
+                        evaluations: evaluations,
+                        selectedAttemptIndex: $0
+                    )
+                }
+
+                throw AgentInferenceExecutionFailure(
+                    attempt: failure,
+                    inference: inference.definition.identifier,
+                    strategy: identifier,
+                    priorAttempts: attemptRecords,
+                    budget: realization.budget,
+                    sampling: sampling,
+                    metadata: realization.metadata
+                )
             } catch AgentInferenceBudgetError.maximumTotalTokensReached {
                 break
             } catch AgentInferenceBudgetError.totalTokenUsageUnavailable {

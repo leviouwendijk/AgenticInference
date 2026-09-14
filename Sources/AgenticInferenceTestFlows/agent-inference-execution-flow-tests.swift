@@ -352,8 +352,13 @@ enum AgentInferenceExecutionFlowTests {
             "fixture_adapter",
             "attempt records resolved inference adapter"
         )
+        let attemptRoute = try Expect.notNil(
+            result.record.attempts[0].route,
+            "successful inference attempt preserves its routed model"
+        )
+
         try Expect.equal(
-            result.record.attempts[0].route.route.profile.identifier.rawValue,
+            attemptRoute.route.profile.identifier.rawValue,
             "fixture_profile",
             "attempt records exact routed model profile"
         )
@@ -399,8 +404,7 @@ enum AgentInferenceExecutionFlowTests {
             ),
             .field(
                 "route",
-                result.record.attempts[0]
-                    .route
+                attemptRoute
                     .route
                     .profile
                     .identifier

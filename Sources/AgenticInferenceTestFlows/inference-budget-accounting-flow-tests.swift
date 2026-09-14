@@ -358,12 +358,16 @@ extension AgentInferenceExecutionFlowTests {
             "one successful semantic attempt records one model invocation"
         )
 
+        let firstRoute = try Expect.notNil(
+            firstAttempt.record.route,
+            "successful budget fixture attempt preserves its route"
+        )
         let legacyAttemptData = try JSONEncoder().encode(
             LegacyBudgetAttemptRecord(
                 index: firstAttempt.record.index,
                 adapter: firstAttempt.record.adapter,
                 selection: firstAttempt.record.selection,
-                route: firstAttempt.record.route,
+                route: firstRoute,
                 usage: firstAttempt.record.usage,
                 metadata: firstAttempt.record.metadata
             )
@@ -378,13 +382,82 @@ extension AgentInferenceExecutionFlowTests {
             1,
             "legacy attempt records synthesize their historical successful invocation"
         )
+        try Expect.equal(
+            migratedLegacyAttempt.route,
+            firstRoute,
+            "legacy successful attempt records migrate into the explicit success outcome"
+        )
+
+        let failedInvocation = AgentInferenceInvocationRecord(
+            index: 0,
+            selection: firstAttempt.record.selection,
+            outcome: .failed(
+                .init(
+                    message: "fixture terminal failure"
+                )
+            ),
+            metadata: [
+                "fixture": "failed_attempt",
+            ]
+        )
+        let failedAttempt = AgentInferenceAttemptRecord(
+            index: 1,
+            adapter: firstAttempt.record.adapter,
+            selection: firstAttempt.record.selection,
+            failure: AgentInferenceFailureRecord(
+                type: "FixtureTerminalFailure",
+                message: "fixture terminal failure"
+            ),
+            invocations: [
+                failedInvocation,
+            ],
+            metadata: [
+                "fixture": "failed_attempt",
+            ]
+        )
+        let failedAttemptRoundTrip = try JSONDecoder().decode(
+            AgentInferenceAttemptRecord.self,
+            from: JSONEncoder().encode(
+                failedAttempt
+            )
+        )
+        let failedEvidence = try Expect.notNil(
+            failedAttemptRoundTrip.failure,
+            "failed attempt round trip preserves canonical failure evidence"
+        )
+
+        try Expect.equal(
+            failedAttemptRoundTrip.route == nil,
+            true,
+            "failed inference attempts do not invent a successful route"
+        )
+        try Expect.equal(
+            failedAttemptRoundTrip.usage == nil,
+            true,
+            "failed inference attempts do not invent successful attempt usage"
+        )
+        try Expect.equal(
+            failedAttemptRoundTrip.invocations.count,
+            1,
+            "failed inference attempts preserve their partial invocation evidence"
+        )
+        try Expect.equal(
+            failedEvidence.type,
+            "FixtureTerminalFailure",
+            "failed attempt preserves canonical failure type"
+        )
+        try Expect.equal(
+            failedEvidence.message,
+            "fixture terminal failure",
+            "failed attempt preserves canonical failure message"
+        )
 
         var recoveredAttempt = firstAttempt.record
         recoveredAttempt.invocations.append(
             AgentInferenceInvocationRecord(
                 index: 1,
                 selection: firstAttempt.record.selection,
-                route: firstAttempt.record.route,
+                route: firstRoute,
                 usage: firstAttempt.record.usage,
                 metadata: firstAttempt.record.metadata
             )

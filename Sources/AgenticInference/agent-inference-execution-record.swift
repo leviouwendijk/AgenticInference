@@ -198,6 +198,32 @@ public struct AgentInferenceInvocationRecord:
     }
 }
 
+public enum AgentInferenceAttemptOutcome:
+    Sendable,
+    Codable,
+    Hashable
+{
+    public struct Success:
+        Sendable,
+        Codable,
+        Hashable
+    {
+        public let route: AgentModelRouteRecord
+        public let usage: AgentUsage?
+
+        public init(
+            route: AgentModelRouteRecord,
+            usage: AgentUsage? = nil
+        ) {
+            self.route = route
+            self.usage = usage
+        }
+    }
+
+    case succeeded(Success)
+    case failed(AgentInferenceFailureRecord)
+}
+
 public struct AgentInferenceAttemptRecord:
     Sendable,
     Codable,
@@ -206,8 +232,7 @@ public struct AgentInferenceAttemptRecord:
     public var index: Int
     public var adapter: AgentInferenceAdapterIdentifier
     public var selection: AgentModelSelection
-    public var route: AgentModelRouteRecord
-    public var usage: AgentUsage?
+    public var outcome: AgentInferenceAttemptOutcome
     public var invocations: [AgentInferenceInvocationRecord]
     public var recoveries: [Recovery.Record]
     public var metadata: [String: String]
@@ -216,11 +241,50 @@ public struct AgentInferenceAttemptRecord:
         case index
         case adapter
         case selection
+        case outcome
         case route
         case usage
         case invocations
         case recoveries
         case metadata
+    }
+
+    public init(
+        index: Int,
+        adapter: AgentInferenceAdapterIdentifier,
+        selection: AgentModelSelection,
+        outcome: AgentInferenceAttemptOutcome,
+        invocations: [AgentInferenceInvocationRecord]? = nil,
+        recoveries: [Recovery.Record] = [],
+        metadata: [String: String] = [:]
+    ) {
+        self.index = index
+        self.adapter = adapter
+        self.selection = selection
+        self.outcome = outcome
+
+        if let invocations {
+            self.invocations = invocations
+        } else {
+            switch outcome {
+            case .succeeded(let success):
+                self.invocations = [
+                    AgentInferenceInvocationRecord(
+                        index: 0,
+                        selection: selection,
+                        route: success.route,
+                        usage: success.usage,
+                        metadata: metadata
+                    ),
+                ]
+
+            case .failed:
+                self.invocations = []
+            }
+        }
+
+        self.recoveries = recoveries
+        self.metadata = metadata
     }
 
     public init(
@@ -233,22 +297,70 @@ public struct AgentInferenceAttemptRecord:
         recoveries: [Recovery.Record] = [],
         metadata: [String: String] = [:]
     ) {
-        self.index = index
-        self.adapter = adapter
-        self.selection = selection
-        self.route = route
-        self.usage = usage
-        self.invocations = invocations ?? [
-            AgentInferenceInvocationRecord(
-                index: 0,
-                selection: selection,
-                route: route,
-                usage: usage,
-                metadata: metadata
+        self.init(
+            index: index,
+            adapter: adapter,
+            selection: selection,
+            outcome: .succeeded(
+                .init(
+                    route: route,
+                    usage: usage
+                )
             ),
-        ]
-        self.recoveries = recoveries
-        self.metadata = metadata
+            invocations: invocations,
+            recoveries: recoveries,
+            metadata: metadata
+        )
+    }
+
+    public init(
+        index: Int,
+        adapter: AgentInferenceAdapterIdentifier,
+        selection: AgentModelSelection,
+        failure: AgentInferenceFailureRecord,
+        invocations: [AgentInferenceInvocationRecord] = [],
+        recoveries: [Recovery.Record] = [],
+        metadata: [String: String] = [:]
+    ) {
+        self.init(
+            index: index,
+            adapter: adapter,
+            selection: selection,
+            outcome: .failed(failure),
+            invocations: invocations,
+            recoveries: recoveries,
+            metadata: metadata
+        )
+    }
+
+    public var route: AgentModelRouteRecord? {
+        switch outcome {
+        case .succeeded(let success):
+            success.route
+
+        case .failed:
+            nil
+        }
+    }
+
+    public var usage: AgentUsage? {
+        switch outcome {
+        case .succeeded(let success):
+            success.usage
+
+        case .failed:
+            nil
+        }
+    }
+
+    public var failure: AgentInferenceFailureRecord? {
+        switch outcome {
+        case .succeeded:
+            nil
+
+        case .failed(let failure):
+            failure
+        }
     }
 
     public init(
@@ -258,7 +370,10 @@ public struct AgentInferenceAttemptRecord:
             keyedBy: CodingKeys.self
         )
 
-        let index = try container.decode(Int.self, forKey: .index)
+        let index = try container.decode(
+            Int.self,
+            forKey: .index
+        )
         let adapter = try container.decode(
             AgentInferenceAdapterIdentifier.self,
             forKey: .adapter
@@ -266,14 +381,6 @@ public struct AgentInferenceAttemptRecord:
         let selection = try container.decode(
             AgentModelSelection.self,
             forKey: .selection
-        )
-        let route = try container.decode(
-            AgentModelRouteRecord.self,
-            forKey: .route
-        )
-        let usage = try container.decodeIfPresent(
-            AgentUsage.self,
-            forKey: .usage
         )
         let metadata = try container.decodeIfPresent(
             [String: String].self,
@@ -288,12 +395,33 @@ public struct AgentInferenceAttemptRecord:
             forKey: .recoveries
         ) ?? []
 
+        let outcome: AgentInferenceAttemptOutcome
+
+        if let decodedOutcome = try container.decodeIfPresent(
+            AgentInferenceAttemptOutcome.self,
+            forKey: .outcome
+        ) {
+            outcome = decodedOutcome
+        } else {
+            outcome = .succeeded(
+                .init(
+                    route: try container.decode(
+                        AgentModelRouteRecord.self,
+                        forKey: .route
+                    ),
+                    usage: try container.decodeIfPresent(
+                        AgentUsage.self,
+                        forKey: .usage
+                    )
+                )
+            )
+        }
+
         self.init(
             index: index,
             adapter: adapter,
             selection: selection,
-            route: route,
-            usage: usage,
+            outcome: outcome,
             invocations: invocations,
             recoveries: recoveries,
             metadata: metadata
@@ -310,7 +438,8 @@ public struct AgentInferenceAttemptRecord:
         try container.encode(index, forKey: .index)
         try container.encode(adapter, forKey: .adapter)
         try container.encode(selection, forKey: .selection)
-        try container.encode(route, forKey: .route)
+        try container.encode(outcome, forKey: .outcome)
+        try container.encodeIfPresent(route, forKey: .route)
         try container.encodeIfPresent(usage, forKey: .usage)
         try container.encode(invocations, forKey: .invocations)
         try container.encode(recoveries, forKey: .recoveries)

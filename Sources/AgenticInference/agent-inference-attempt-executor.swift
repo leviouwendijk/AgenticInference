@@ -124,6 +124,36 @@ public struct AgentInferenceAttemptExecutor:
         self.recoveryClassifier = recoveryClassifier
     }
 
+    private func terminalFailure(
+        error: any Error,
+        recovery: Recovery.Record? = nil,
+        attemptIndex: Int,
+        adapter: AgentInferenceAdapterIdentifier,
+        selection: AgentModelSelection,
+        invocations: [AgentInferenceInvocationRecord],
+        recoveries: [Recovery.Record],
+        metadata: [String: String]
+    ) -> AgentInferenceAttemptFailure {
+        var recordedRecoveries = recoveries
+
+        if let recovery {
+            recordedRecoveries.append(recovery)
+        }
+
+        return AgentInferenceAttemptFailure(
+            index: attemptIndex,
+            adapter: adapter,
+            selection: selection,
+            failure: AgentInferenceFailureRecord(
+                capturing: error,
+                recovery: recovery
+            ),
+            invocations: invocations,
+            recoveries: recordedRecoveries,
+            metadata: metadata
+        )
+    }
+
     public func execute<Inference: AgentInference>(
         _ inference: Inference.Type,
         input: Inference.Input,
@@ -156,6 +186,8 @@ public struct AgentInferenceAttemptExecutor:
         var invocations: [AgentInferenceInvocationRecord] = []
         var recoveries: [Recovery.Record] = []
         var activeRecovery: AgentInferenceActiveRecovery?
+        var lastSelection = realization.modelSelection
+        var lastMetadata = realization.metadata
 
         while true {
             let invocationMode: AgentInferenceInvocationMode
@@ -166,11 +198,23 @@ public struct AgentInferenceAttemptExecutor:
                         activeRecovery.attempts.count
                     )
                 ) else {
-                    throw AgentInferenceRecoveryError(
-                        record: activeRecovery.record(
-                            outcome: .exhausted
-                        ),
+                    let recoveryRecord = activeRecovery.record(
+                        outcome: .exhausted
+                    )
+                    let recoveryError = AgentInferenceRecoveryError(
+                        record: recoveryRecord,
                         message: activeRecovery.lastMessage
+                    )
+
+                    throw terminalFailure(
+                        error: recoveryError,
+                        recovery: recoveryRecord,
+                        attemptIndex: attemptIndex,
+                        adapter: adapter.identifier,
+                        selection: lastSelection,
+                        invocations: invocations,
+                        recoveries: recoveries,
+                        metadata: lastMetadata
                     )
                 }
 
@@ -196,6 +240,7 @@ public struct AgentInferenceAttemptExecutor:
                 .merging(
                     additionalRequirements
                 )
+            lastSelection = selection
 
             var metadata = realization.metadata
             metadata["inference.identifier"] =
@@ -208,6 +253,7 @@ public struct AgentInferenceAttemptExecutor:
                 String(attemptIndex)
             metadata["inference.invocation"] =
                 String(invocationIndex)
+            lastMetadata = metadata
 
             let result: AgentModelInvocationResult
 
@@ -248,7 +294,15 @@ public struct AgentInferenceAttemptExecutor:
                 switch invocationMode {
                 case .initial:
                     guard let incident else {
-                        throw error
+                        throw terminalFailure(
+                            error: error,
+                            attemptIndex: attemptIndex,
+                            adapter: adapter.identifier,
+                            selection: selection,
+                            invocations: invocations,
+                            recoveries: recoveries,
+                            metadata: metadata
+                        )
                     }
 
                     let plan = realization.recovery?.plan(
@@ -260,10 +314,21 @@ public struct AgentInferenceAttemptExecutor:
                         let step = plan.steps.first,
                         step.action == .retry_same_operation
                     else {
-                        throw AgentInferenceRecoveryError(
+                        let recoveryRecord = AgentInferenceRecoveryError(
                             propagating: incident,
                             plan: plan,
                             message: message
+                        ).record
+
+                        throw terminalFailure(
+                            error: error,
+                            recovery: recoveryRecord,
+                            attemptIndex: attemptIndex,
+                            adapter: adapter.identifier,
+                            selection: selection,
+                            invocations: invocations,
+                            recoveries: recoveries,
+                            metadata: metadata
                         )
                     }
 
@@ -295,11 +360,19 @@ public struct AgentInferenceAttemptExecutor:
                         incident.kind == recovery.incident.kind,
                         incident.stage == recovery.incident.stage
                     else {
-                        throw AgentInferenceRecoveryError(
-                            record: recovery.record(
-                                outcome: .failed
-                            ),
-                            message: message
+                        let recoveryRecord = recovery.record(
+                            outcome: .failed
+                        )
+
+                        throw terminalFailure(
+                            error: error,
+                            recovery: recoveryRecord,
+                            attemptIndex: attemptIndex,
+                            adapter: adapter.identifier,
+                            selection: selection,
+                            invocations: invocations,
+                            recoveries: recoveries,
+                            metadata: metadata
                         )
                     }
 

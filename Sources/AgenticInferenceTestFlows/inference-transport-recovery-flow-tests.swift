@@ -465,7 +465,7 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             recovery: policy
         )
 
-        let failureRecord: Recovery.Record?
+        let terminalFailure: AgentInferenceAttemptFailure?
 
         do {
             _ = try await executor.execute(
@@ -475,16 +475,20 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
                 ),
                 realization: realization
             )
-            failureRecord = nil
-        } catch let error as AgentInferenceRecoveryError {
-            failureRecord = error.record
+            terminalFailure = nil
+        } catch let error as AgentInferenceAttemptFailure {
+            terminalFailure = error
         } catch {
             throw error
         }
 
+        let failure = try Expect.notNil(
+            terminalFailure,
+            "exhausted transport recovery preserves the terminal semantic attempt"
+        )
         let record = try Expect.notNil(
-            failureRecord,
-            "exhausted transport recovery surfaces a structured recovery record"
+            failure.recovery,
+            "exhausted transport recovery remains attached to the failed attempt"
         )
         let incidentReport = try Expect.notNil(
             record.incident.report,
@@ -522,6 +526,21 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             2,
             "exhaustion performs exactly the initial invocation and one bounded retry"
         )
+        try Expect.equal(
+            failure.record.invocations.count,
+            2,
+            "terminal attempt retains both model invocations already performed"
+        )
+        try Expect.equal(
+            failure.record.recoveries.last?.outcome,
+            .exhausted,
+            "terminal attempt retains its exhausted mechanical recovery"
+        )
+        try Expect.equal(
+            failure.failure.recovery,
+            record,
+            "terminal failure and attempt evidence reference the same recovery record"
+        )
 
         return [
             .field(
@@ -543,6 +562,10 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             .field(
                 "model_invocations",
                 String(await state.invocationCount())
+            ),
+            .field(
+                "recorded_invocations",
+                String(failure.record.invocations.count)
             ),
         ]
     },
@@ -574,7 +597,7 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             budget: .singleAttempt
         )
 
-        let failureRecord: Recovery.Record?
+        let terminalFailure: AgentInferenceAttemptFailure?
 
         do {
             _ = try await executor.execute(
@@ -584,16 +607,20 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
                 ),
                 realization: realization
             )
-            failureRecord = nil
-        } catch let error as AgentInferenceRecoveryError {
-            failureRecord = error.record
+            terminalFailure = nil
+        } catch let error as AgentInferenceAttemptFailure {
+            terminalFailure = error
         } catch {
             throw error
         }
 
+        let failure = try Expect.notNil(
+            terminalFailure,
+            "classified transport propagation preserves the failed semantic attempt"
+        )
         let record = try Expect.notNil(
-            failureRecord,
-            "classified transport failure propagates as structured recovery evidence even without a recovery policy"
+            failure.recovery,
+            "classified transport propagation remains attached to the failed attempt"
         )
 
         try Expect.equal(
@@ -641,6 +668,21 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             true,
             "propagated transport record retains structured error evidence"
         )
+        try Expect.equal(
+            failure.record.invocations.count,
+            1,
+            "propagated transport attempt preserves the failed outbound invocation"
+        )
+        try Expect.equal(
+            failure.record.recoveries.last?.outcome,
+            .propagated,
+            "failed attempt retains the propagated recovery decision"
+        )
+        try Expect.equal(
+            failure.failure.message,
+            TransportRecoveryFixtureError.transient.localizedDescription,
+            "canonical attempt failure preserves the underlying transport presentation"
+        )
 
         return [
             .field(
@@ -662,6 +704,10 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             .field(
                 "model_invocations",
                 String(await state.invocationCount())
+            ),
+            .field(
+                "recorded_invocations",
+                String(failure.record.invocations.count)
             ),
         ]
     },

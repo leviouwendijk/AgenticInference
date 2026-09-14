@@ -3,16 +3,18 @@ import Foundation
 
 /// Terminal failure of one inference execution.
 ///
-/// The attempt is the exact lower-layer terminal semantic-attempt failure.
-/// The execution record adds strategy-level context without reconstructing or
-/// discarding the evidence accumulated by that attempt.
+/// Failure is always represented at execution scope. `terminalAttempt` is
+/// present only when the execution terminated because a semantic attempt
+/// itself failed. Strategy-local failures may occur after successful attempts
+/// and therefore have no failed semantic attempt to manufacture.
 public struct AgentInferenceExecutionFailure:
     Error,
     Sendable,
     LocalizedError
 {
-    public let attempt: AgentInferenceAttemptFailure
+    public let failure: AgentInferenceFailureRecord
     public let record: AgentInferenceExecutionRecord
+    public let terminalAttempt: AgentInferenceAttemptFailure?
 
     public init(
         attempt: AgentInferenceAttemptFailure,
@@ -27,8 +29,9 @@ public struct AgentInferenceExecutionFailure:
         var attempts = priorAttempts
         attempts.append(attempt.record)
 
-        self.attempt = attempt
-        self.record = AgentInferenceExecutionRecord(
+        self.init(
+            failure: attempt.failure,
+            terminalAttempt: attempt,
             inference: inference,
             strategy: strategy,
             attempts: attempts,
@@ -39,12 +42,58 @@ public struct AgentInferenceExecutionFailure:
         )
     }
 
-    public var failure: AgentInferenceFailureRecord {
-        attempt.failure
+    public init(
+        capturing error: any Error,
+        inference: AgentInferenceIdentifier,
+        strategy: AgentInferenceStrategyIdentifier,
+        attempts: [AgentInferenceAttemptRecord] = [],
+        budget: AgentInferenceBudget? = nil,
+        sampling: AgentInferenceSamplingRecord? = nil,
+        refinement: AgentInferenceRefinementRecord? = nil,
+        metadata: [String: String] = [:]
+    ) {
+        self.init(
+            failure: AgentInferenceFailureRecord(
+                capturing: error
+            ),
+            terminalAttempt: nil,
+            inference: inference,
+            strategy: strategy,
+            attempts: attempts,
+            budget: budget,
+            sampling: sampling,
+            refinement: refinement,
+            metadata: metadata
+        )
+    }
+
+    private init(
+        failure: AgentInferenceFailureRecord,
+        terminalAttempt: AgentInferenceAttemptFailure?,
+        inference: AgentInferenceIdentifier,
+        strategy: AgentInferenceStrategyIdentifier,
+        attempts: [AgentInferenceAttemptRecord],
+        budget: AgentInferenceBudget?,
+        sampling: AgentInferenceSamplingRecord?,
+        refinement: AgentInferenceRefinementRecord?,
+        metadata: [String: String]
+    ) {
+        self.failure = failure
+        self.terminalAttempt = terminalAttempt
+        self.record = AgentInferenceExecutionRecord(
+            inference: inference,
+            strategy: strategy,
+            attempts: attempts,
+            failure: failure,
+            budget: budget,
+            sampling: sampling,
+            refinement: refinement,
+            metadata: metadata
+        )
     }
 
     public var recovery: Recovery.Record? {
-        attempt.recovery
+        failure.recovery
     }
 
     public var errorDescription: String? {

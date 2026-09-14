@@ -84,12 +84,34 @@ public struct SampledInferenceStrategy:
                 attempt.record
             )
 
-            let candidateScore = try await evaluator.evaluate(
-                inference,
-                input: input,
-                output: attempt.output,
-                attempt: attempt.record
-            )
+            let candidateScore: AgentInferenceCandidateScore
+
+            do {
+                candidateScore = try await evaluator.evaluate(
+                    inference,
+                    input: input,
+                    output: attempt.output,
+                    attempt: attempt.record
+                )
+            } catch {
+                let sampling = selectedAttemptIndex.map {
+                    AgentInferenceSamplingRecord(
+                        evaluator: evaluator.identifier,
+                        evaluations: evaluations,
+                        selectedAttemptIndex: $0
+                    )
+                }
+
+                throw AgentInferenceExecutionFailure(
+                    capturing: error,
+                    inference: inference.definition.identifier,
+                    strategy: identifier,
+                    attempts: attemptRecords,
+                    budget: realization.budget,
+                    sampling: sampling,
+                    metadata: realization.metadata
+                )
+            }
 
             evaluations.append(
                 AgentInferenceSampleEvaluation(

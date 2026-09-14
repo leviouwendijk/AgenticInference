@@ -110,13 +110,37 @@ public struct RefiningInferenceStrategy:
             )
             lastAttemptIndex = attemptIndex
 
-            let decision = try await guide.guide(
-                inference,
-                input: input,
-                output: attempt.output,
-                attempt: attempt.record,
-                realization: currentRealization
-            )
+            let decision: AgentInferenceRefinementDecision
+
+            do {
+                decision = try await guide.guide(
+                    inference,
+                    input: input,
+                    output: attempt.output,
+                    attempt: attempt.record,
+                    realization: currentRealization
+                )
+            } catch {
+                let refinement = selectedAttemptIndex.map {
+                    AgentInferenceRefinementRecord(
+                        guide: guide.identifier,
+                        steps: refinementSteps,
+                        selectedAttemptIndex: $0,
+                        lastAttemptIndex: attemptIndex,
+                        termination: .guide_failed
+                    )
+                }
+
+                throw AgentInferenceExecutionFailure(
+                    capturing: error,
+                    inference: inference.definition.identifier,
+                    strategy: identifier,
+                    attempts: attemptRecords,
+                    budget: realization.budget,
+                    refinement: refinement,
+                    metadata: realization.metadata
+                )
+            }
 
             let continued: Bool
             switch decision.directive {

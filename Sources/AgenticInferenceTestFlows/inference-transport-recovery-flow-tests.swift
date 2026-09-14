@@ -486,13 +486,21 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             terminalFailure,
             "exhausted transport recovery preserves the terminal inference execution"
         )
-        let failure = executionFailure.attempt
+        let failure = try Expect.notNil(
+            executionFailure.terminalAttempt,
+            "transport exhaustion retains its exact terminal semantic attempt"
+        )
         try Expect.equal(
             executionFailure.record.attempts,
             [
                 failure.record,
             ],
             "direct execution failure retains the exact terminal semantic attempt"
+        )
+        try Expect.equal(
+            executionFailure.record.failure,
+            executionFailure.failure,
+            "execution record durably preserves the terminal execution failure"
         )
         let record = try Expect.notNil(
             failure.recovery,
@@ -626,13 +634,21 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             terminalFailure,
             "classified transport propagation preserves the failed inference execution"
         )
-        let failure = executionFailure.attempt
+        let failure = try Expect.notNil(
+            executionFailure.terminalAttempt,
+            "transport propagation retains its exact terminal semantic attempt"
+        )
         try Expect.equal(
             executionFailure.record.attempts,
             [
                 failure.record,
             ],
             "direct execution failure retains the exact propagated semantic attempt"
+        )
+        try Expect.equal(
+            executionFailure.record.failure,
+            executionFailure.failure,
+            "propagated execution record durably preserves execution failure"
         )
         let record = try Expect.notNil(
             failure.recovery,

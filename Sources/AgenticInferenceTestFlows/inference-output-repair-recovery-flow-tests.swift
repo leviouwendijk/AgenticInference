@@ -528,13 +528,21 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             terminalFailure,
             "classified decoding propagation preserves the failed inference execution"
         )
-        let failure = executionFailure.attempt
+        let failure = try Expect.notNil(
+            executionFailure.terminalAttempt,
+            "decoding propagation retains its exact terminal semantic attempt"
+        )
         try Expect.equal(
             executionFailure.record.attempts,
             [
                 failure.record,
             ],
             "direct execution failure retains the exact decoding semantic attempt"
+        )
+        try Expect.equal(
+            executionFailure.record.failure,
+            executionFailure.failure,
+            "decoding execution record durably preserves execution failure"
         )
         let record = try Expect.notNil(
             failure.recovery,
@@ -742,13 +750,21 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             terminalFailure,
             "repair blocked by token budget preserves the failed inference execution"
         )
-        let failure = executionFailure.attempt
+        let failure = try Expect.notNil(
+            executionFailure.terminalAttempt,
+            "budget-blocked repair retains its exact terminal semantic attempt"
+        )
         try Expect.equal(
             executionFailure.record.attempts,
             [
                 failure.record,
             ],
             "budget-blocked execution retains the exact paid semantic attempt"
+        )
+        try Expect.equal(
+            executionFailure.record.failure,
+            executionFailure.failure,
+            "budget-blocked execution record durably preserves execution failure"
         )
         let recovery = try Expect.notNil(
             failure.recovery,

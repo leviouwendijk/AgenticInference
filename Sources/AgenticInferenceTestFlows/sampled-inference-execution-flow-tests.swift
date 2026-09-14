@@ -181,6 +181,13 @@ private struct SampledFixtureEvaluator:
 {
     let identifier: AgentInferenceEvaluatorIdentifier =
         "fixture_quality"
+    let failingAttemptIndex: Int?
+
+    init(
+        failingAttemptIndex: Int? = nil
+    ) {
+        self.failingAttemptIndex = failingAttemptIndex
+    }
 
     func evaluate<Inference: AgentInference>(
         _ inference: Inference.Type,
@@ -188,6 +195,12 @@ private struct SampledFixtureEvaluator:
         output: Inference.Output,
         attempt: AgentInferenceAttemptRecord
     ) async throws -> AgentInferenceCandidateScore {
+        if failingAttemptIndex == attempt.index {
+            throw SampledFixtureError.evaluationFailed(
+                attempt.index
+            )
+        }
+
         let data = try JSONEncoder().encode(
             output
         )
@@ -221,6 +234,7 @@ private enum SampledFixtureError:
 {
     case unknownAdapter(String)
     case responsesExhausted
+    case evaluationFailed(Int)
     case streamingUnsupported
 }
 
@@ -403,6 +417,10 @@ extension AgentInferenceExecutionFlowTests {
             executionFailure,
             "sampled terminal attempt failure becomes canonical execution failure"
         )
+        let terminalSampleAttempt = try Expect.notNil(
+            sampledFailure.terminalAttempt,
+            "sampled attempt failure preserves its exact terminal attempt"
+        )
         let partialSampling = try Expect.notNil(
             sampledFailure.record.sampling,
             "sampled failure preserves completed evaluation state"
@@ -425,11 +443,11 @@ extension AgentInferenceExecutionFlowTests {
         )
         try Expect.equal(
             sampledFailure.record.attempts[1],
-            sampledFailure.attempt.record,
+            terminalSampleAttempt.record,
             "terminal sampled attempt is preserved exactly"
         )
         try Expect.equal(
-            sampledFailure.attempt.record.index,
+            terminalSampleAttempt.record.index,
             1,
             "sampled failure preserves the failed semantic attempt index"
         )
@@ -458,6 +476,101 @@ extension AgentInferenceExecutionFlowTests {
             1,
             "failed provider invocation remains explicit when token usage was never reported"
         )
+        try Expect.equal(
+            sampledFailure.record.failure,
+            sampledFailure.failure,
+            "sampled attempt failure is durable on the execution record"
+        )
+
+        let evaluatorFailureState = SampledFixtureState(
+            outputs: [
+                "LOW",
+                "BEST",
+            ]
+        )
+        let evaluatorFailureExecutor = AgentInferenceExecutor(
+            modelInvoker: SampledFixtureModelInvoker(
+                state: evaluatorFailureState
+            ),
+            adapters: SampledFixtureAdapterResolver(),
+            sampleEvaluator: SampledFixtureEvaluator(
+                failingAttemptIndex: 1
+            )
+        )
+        let evaluatorExecutionFailure: AgentInferenceExecutionFailure?
+
+        do {
+            _ = try await evaluatorFailureExecutor.execute(
+                SampledFixtureInference.self,
+                input: .init(
+                    value: "evaluator-failure"
+                ),
+                realization: AgentInferenceRealization(
+                    strategy: .sampled,
+                    modelSelection: .executor,
+                    instructions: "Preserve paid attempts when evaluation fails.",
+                    budget: try AgentInferenceBudget(
+                        maximumAttempts: 2
+                    ),
+                    adapter: "sampled_fixture_adapter"
+                )
+            )
+            evaluatorExecutionFailure = nil
+        } catch let error as AgentInferenceExecutionFailure {
+            evaluatorExecutionFailure = error
+        } catch {
+            throw error
+        }
+
+        let evaluatorFailure = try Expect.notNil(
+            evaluatorExecutionFailure,
+            "sample evaluator failure becomes canonical execution failure"
+        )
+        let evaluatorSampling = try Expect.notNil(
+            evaluatorFailure.record.sampling,
+            "evaluator failure preserves completed sampling state"
+        )
+
+        try Expect.equal(
+            evaluatorFailure.terminalAttempt == nil,
+            true,
+            "strategy-local evaluator failure manufactures no failed semantic attempt"
+        )
+        try Expect.equal(
+            evaluatorFailure.record.failure,
+            evaluatorFailure.failure,
+            "strategy-local evaluator failure is durable on the execution record"
+        )
+        try Expect.equal(
+            evaluatorFailure.record.attempts.count,
+            2,
+            "evaluator failure retains both successful paid model attempts"
+        )
+        try Expect.equal(
+            evaluatorFailure.record.attempts[1].failure == nil,
+            true,
+            "model attempt remains successful when only subsequent evaluation fails"
+        )
+        try Expect.equal(
+            evaluatorSampling.evaluations.count,
+            1,
+            "evaluator failure preserves only completed evaluations"
+        )
+        try Expect.equal(
+            evaluatorSampling.selectedAttemptIndex,
+            0,
+            "evaluator failure preserves the best fully evaluated candidate"
+        )
+        try Expect.equal(
+            evaluatorFailure.record.budgetUsage.invocationCount,
+            2,
+            "evaluator failure retains both provider invocations"
+        )
+        try Expect.equal(
+            evaluatorFailure.record.budgetUsage.totalTokens,
+            4,
+            "evaluator failure preserves all reported provider spend"
+        )
 
         return [
             .field(
@@ -483,6 +596,10 @@ extension AgentInferenceExecutionFlowTests {
             .field(
                 "failed_execution_attempts",
                 String(sampledFailure.record.attempts.count)
+            ),
+            .field(
+                "evaluator_failure_tokens",
+                String(evaluatorFailure.record.budgetUsage.totalTokens ?? 0)
             ),
         ]
     }

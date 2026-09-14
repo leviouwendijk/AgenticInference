@@ -455,6 +455,7 @@ public struct AgentInferenceExecutionRecord:
     public var inference: AgentInferenceIdentifier
     public var strategy: AgentInferenceStrategyIdentifier
     public var attempts: [AgentInferenceAttemptRecord]
+    public var failure: AgentInferenceFailureRecord?
     public var budget: AgentInferenceBudget?
     public var sampling: AgentInferenceSamplingRecord?
     public var refinement: AgentInferenceRefinementRecord?
@@ -464,6 +465,7 @@ public struct AgentInferenceExecutionRecord:
         inference: AgentInferenceIdentifier,
         strategy: AgentInferenceStrategyIdentifier,
         attempts: [AgentInferenceAttemptRecord] = [],
+        failure: AgentInferenceFailureRecord? = nil,
         budget: AgentInferenceBudget? = nil,
         sampling: AgentInferenceSamplingRecord? = nil,
         refinement: AgentInferenceRefinementRecord? = nil,
@@ -472,6 +474,7 @@ public struct AgentInferenceExecutionRecord:
         self.inference = inference
         self.strategy = strategy
         self.attempts = attempts
+        self.failure = failure
         self.budget = budget
         self.sampling = sampling
         self.refinement = refinement

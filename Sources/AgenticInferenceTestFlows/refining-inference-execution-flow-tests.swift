@@ -193,6 +193,13 @@ private struct RefiningFixtureGuide:
 {
     let identifier: AgentInferenceRefinementGuideIdentifier =
         "fixture_refinement"
+    let failingAttemptIndex: Int?
+
+    init(
+        failingAttemptIndex: Int? = nil
+    ) {
+        self.failingAttemptIndex = failingAttemptIndex
+    }
 
     func guide<Inference: AgentInference>(
         _ inference: Inference.Type,
@@ -201,6 +208,12 @@ private struct RefiningFixtureGuide:
         attempt: AgentInferenceAttemptRecord,
         realization: AgentInferenceRealization
     ) async throws -> AgentInferenceRefinementDecision {
+        if failingAttemptIndex == attempt.index {
+            throw RefiningFixtureError.guideFailed(
+                attempt.index
+            )
+        }
+
         let data = try JSONEncoder().encode(
             output
         )
@@ -266,6 +279,7 @@ private enum RefiningFixtureError:
     case unknownAdapter(String)
     case responsesExhausted
     case unexpectedOutput(String)
+    case guideFailed(Int)
     case streamingUnsupported
 }
 
@@ -433,6 +447,10 @@ extension AgentInferenceExecutionFlowTests {
             executionFailure,
             "refining terminal attempt failure becomes canonical execution failure"
         )
+        let terminalRefiningAttempt = try Expect.notNil(
+            refiningFailure.terminalAttempt,
+            "refining attempt failure preserves its exact terminal attempt"
+        )
         let partialRefinement = try Expect.notNil(
             refiningFailure.record.refinement,
             "refining failure preserves completed guide state"
@@ -455,11 +473,11 @@ extension AgentInferenceExecutionFlowTests {
         )
         try Expect.equal(
             refiningFailure.record.attempts[1],
-            refiningFailure.attempt.record,
+            terminalRefiningAttempt.record,
             "terminal refining attempt is preserved exactly"
         )
         try Expect.equal(
-            refiningFailure.attempt.record.index,
+            terminalRefiningAttempt.record.index,
             1,
             "refining failure preserves the failed semantic attempt index"
         )
@@ -498,6 +516,111 @@ extension AgentInferenceExecutionFlowTests {
             1,
             "failed refining provider invocation remains explicit when usage was never reported"
         )
+        try Expect.equal(
+            refiningFailure.record.failure,
+            refiningFailure.failure,
+            "refining attempt failure is durable on the execution record"
+        )
+
+        let guideFailureState = RefiningFixtureState(
+            outputs: [
+                "ROUGH",
+                "BETTER",
+            ]
+        )
+        let guideFailureExecutor = AgentInferenceExecutor(
+            modelInvoker: RefiningFixtureModelInvoker(
+                state: guideFailureState
+            ),
+            adapters: RefiningFixtureAdapterResolver(),
+            refinementGuide: RefiningFixtureGuide(
+                failingAttemptIndex: 1
+            )
+        )
+        let guideExecutionFailure: AgentInferenceExecutionFailure?
+
+        do {
+            _ = try await guideFailureExecutor.execute(
+                RefiningFixtureInference.self,
+                input: .init(
+                    value: "guide-failure"
+                ),
+                realization: AgentInferenceRealization(
+                    strategy: .refining,
+                    modelSelection: .executor,
+                    instructions: "Preserve paid attempts when refinement guidance fails.",
+                    budget: try AgentInferenceBudget(
+                        maximumAttempts: 2
+                    ),
+                    adapter: "refining_fixture_adapter"
+                )
+            )
+            guideExecutionFailure = nil
+        } catch let error as AgentInferenceExecutionFailure {
+            guideExecutionFailure = error
+        } catch {
+            throw error
+        }
+
+        let guideFailure = try Expect.notNil(
+            guideExecutionFailure,
+            "refinement guide failure becomes canonical execution failure"
+        )
+        let guideRefinement = try Expect.notNil(
+            guideFailure.record.refinement,
+            "guide failure preserves completed refinement state"
+        )
+
+        try Expect.equal(
+            guideFailure.terminalAttempt == nil,
+            true,
+            "strategy-local guide failure manufactures no failed semantic attempt"
+        )
+        try Expect.equal(
+            guideFailure.record.failure,
+            guideFailure.failure,
+            "strategy-local guide failure is durable on the execution record"
+        )
+        try Expect.equal(
+            guideFailure.record.attempts.count,
+            2,
+            "guide failure retains both successful paid model attempts"
+        )
+        try Expect.equal(
+            guideFailure.record.attempts[1].failure == nil,
+            true,
+            "model attempt remains successful when only subsequent guidance fails"
+        )
+        try Expect.equal(
+            guideRefinement.steps.count,
+            1,
+            "guide failure preserves only completed guide decisions"
+        )
+        try Expect.equal(
+            guideRefinement.selectedAttemptIndex,
+            0,
+            "guide failure preserves the best fully guided candidate"
+        )
+        try Expect.equal(
+            guideRefinement.lastAttemptIndex,
+            1,
+            "guide failure records the successful model attempt whose guidance failed"
+        )
+        try Expect.equal(
+            guideRefinement.termination,
+            .guide_failed,
+            "partial refinement explicitly distinguishes guide failure"
+        )
+        try Expect.equal(
+            guideFailure.record.budgetUsage.invocationCount,
+            2,
+            "guide failure retains both provider invocations"
+        )
+        try Expect.equal(
+            guideFailure.record.budgetUsage.totalTokens,
+            4,
+            "guide failure preserves all reported provider spend"
+        )
 
         return [
             .field(
@@ -530,6 +653,10 @@ extension AgentInferenceExecutionFlowTests {
             .field(
                 "failed_execution_attempts",
                 String(refiningFailure.record.attempts.count)
+            ),
+            .field(
+                "guide_failure_tokens",
+                String(guideFailure.record.budgetUsage.totalTokens ?? 0)
             ),
         ]
     }

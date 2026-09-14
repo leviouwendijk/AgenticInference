@@ -546,4 +546,123 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             ),
         ]
     },
+    TestFlow(
+        "inference-transport-classification-propagation",
+        tags: [
+            "agentic-inference",
+            "recovery",
+            "transport",
+            "classification",
+            "propagation",
+        ]
+    ) {
+        let state = TransportRecoveryFixtureState()
+        let executor = AgentInferenceExecutor(
+            modelInvoker: TransportRecoveryFixtureModelInvoker(
+                state: state
+            ),
+            adapters: TransportRecoveryFixtureAdapterResolver(),
+            defaultAdapterIdentifier:
+                "transport_recovery_fixture_adapter",
+            recoveryClassifier:
+                TransportRecoveryFixtureClassifier()
+        )
+        let realization = AgentInferenceRealization(
+            strategy: .direct,
+            modelSelection: .executor,
+            instructions: "Return the fixture output.",
+            budget: .singleAttempt
+        )
+
+        let failureRecord: Recovery.Record?
+
+        do {
+            _ = try await executor.execute(
+                TransportRecoveryFixtureInference.self,
+                input: .init(
+                    value: "fixture"
+                ),
+                realization: realization
+            )
+            failureRecord = nil
+        } catch let error as AgentInferenceRecoveryError {
+            failureRecord = error.record
+        } catch {
+            throw error
+        }
+
+        let record = try Expect.notNil(
+            failureRecord,
+            "classified transport failure propagates as structured recovery evidence even without a recovery policy"
+        )
+
+        try Expect.equal(
+            await state.invocationCount(),
+            1,
+            "classification without a recovery policy performs no mechanical retry"
+        )
+        try Expect.equal(
+            record.incident.kind,
+            .transport_transient,
+            "propagated record preserves classified transport incident"
+        )
+        try Expect.equal(
+            record.incident.stage,
+            .execution,
+            "propagated transport classification retains execution stage"
+        )
+        try Expect.equal(
+            record.plan == nil,
+            true,
+            "classification without policy invents no recovery plan"
+        )
+        try Expect.equal(
+            record.attempts.count,
+            0,
+            "classification without policy records no mechanical recovery attempts"
+        )
+        try Expect.equal(
+            record.outcome,
+            .propagated,
+            "classified unresolved transport failure is explicitly propagated"
+        )
+        try Expect.equal(
+            record.state.effect,
+            .none,
+            "propagated transport record preserves authoritative effect state"
+        )
+        try Expect.equal(
+            record.state.retry,
+            .safe,
+            "propagated transport record preserves retry safety"
+        )
+        try Expect.equal(
+            record.incident.report != nil,
+            true,
+            "propagated transport record retains structured error evidence"
+        )
+
+        return [
+            .field(
+                "outcome",
+                record.outcome.rawValue
+            ),
+            .field(
+                "kind",
+                record.incident.kind.rawValue
+            ),
+            .field(
+                "effect",
+                record.state.effect.rawValue
+            ),
+            .field(
+                "retry",
+                record.state.retry.rawValue
+            ),
+            .field(
+                "model_invocations",
+                String(await state.invocationCount())
+            ),
+        ]
+    },
 ]

@@ -247,16 +247,24 @@ public struct AgentInferenceAttemptExecutor:
 
                 switch invocationMode {
                 case .initial:
+                    guard let incident else {
+                        throw error
+                    }
+
+                    let plan = realization.recovery?.plan(
+                        for: incident
+                    )
+
                     guard
-                        let incident,
-                        let policy = realization.recovery,
-                        let plan = policy.plan(
-                            for: incident
-                        ),
+                        let plan,
                         let step = plan.steps.first,
                         step.action == .retry_same_operation
                     else {
-                        throw error
+                        throw AgentInferenceRecoveryError(
+                            propagating: incident,
+                            plan: plan,
+                            message: message
+                        )
                     }
 
                     activeRecovery = AgentInferenceActiveRecovery(
@@ -404,17 +412,34 @@ public struct AgentInferenceAttemptExecutor:
                     continue
                 }
 
-                guard
-                    let incident,
-                    let policy = realization.recovery,
-                    let plan = policy.plan(
-                        for: incident
-                    ),
-                    let step = plan.steps.first,
-                    step.action == .repair_output,
-                    let repairingAdapter = adapter as? any AgentInferenceOutputRepairing
-                else {
+                guard let incident else {
                     throw error
+                }
+
+                let plan = realization.recovery?.plan(
+                    for: incident
+                )
+
+                guard
+                    let plan,
+                    let step = plan.steps.first,
+                    step.action == .repair_output
+                else {
+                    throw AgentInferenceRecoveryError(
+                        propagating: incident,
+                        plan: plan,
+                        message: message
+                    )
+                }
+
+                guard let repairingAdapter =
+                    adapter as? any AgentInferenceOutputRepairing
+                else {
+                    throw AgentInferenceRecoveryError(
+                        propagating: incident,
+                        plan: plan,
+                        message: message
+                    )
                 }
 
                 adaptation = try repairingAdapter.repair(

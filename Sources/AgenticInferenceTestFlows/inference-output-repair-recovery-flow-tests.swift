@@ -477,4 +477,125 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             ),
         ]
     },
+    TestFlow(
+        "inference-output-classification-propagation",
+        tags: [
+            "agentic-inference",
+            "recovery",
+            "structured-output",
+            "decoding",
+            "classification",
+            "propagation",
+        ]
+    ) {
+        let state = OutputRepairFixtureState()
+        let executor = AgentInferenceExecutor(
+            modelInvoker: OutputRepairFixtureModelInvoker(
+                state: state
+            ),
+            adapters: OutputRepairFixtureAdapterResolver(),
+            defaultAdapterIdentifier:
+                "output_repair_fixture_adapter",
+            recoveryClassifier:
+                OutputRepairFixtureClassifier()
+        )
+        let realization = AgentInferenceRealization(
+            strategy: .direct,
+            modelSelection: .executor,
+            instructions: "Return the fixture output.",
+            budget: .singleAttempt
+        )
+
+        let failureRecord: Recovery.Record?
+
+        do {
+            _ = try await executor.execute(
+                OutputRepairFixtureInference.self,
+                input: .init(
+                    value: "fixture"
+                ),
+                realization: realization
+            )
+            failureRecord = nil
+        } catch let error as AgentInferenceRecoveryError {
+            failureRecord = error.record
+        } catch {
+            throw error
+        }
+
+        let record = try Expect.notNil(
+            failureRecord,
+            "classified decoding failure propagates as structured recovery evidence even without a repair policy"
+        )
+
+        try Expect.equal(
+            await state.invocationCount(),
+            1,
+            "classification without repair policy performs no second model invocation"
+        )
+        try Expect.equal(
+            await state.sawRepairRequest(),
+            false,
+            "classification alone never manufactures an output-repair attempt"
+        )
+        try Expect.equal(
+            record.incident.kind,
+            .structured_output_invalid,
+            "propagated record preserves the structured-output classification"
+        )
+        try Expect.equal(
+            record.incident.stage,
+            .decoding,
+            "propagated structured-output failure retains decoding stage"
+        )
+        try Expect.equal(
+            record.plan == nil,
+            true,
+            "classification without policy invents no repair plan"
+        )
+        try Expect.equal(
+            record.attempts.count,
+            0,
+            "classification without policy records no repair attempts"
+        )
+        try Expect.equal(
+            record.outcome,
+            .propagated,
+            "classified unresolved decoding failure is explicitly propagated"
+        )
+        try Expect.equal(
+            record.state.effect,
+            .none,
+            "propagated decoding record preserves authoritative effect state"
+        )
+        try Expect.equal(
+            record.state.retry,
+            .safe,
+            "propagated decoding record preserves retry safety"
+        )
+        try Expect.equal(
+            record.incident.report != nil,
+            true,
+            "propagated decoding record retains structured error evidence"
+        )
+
+        return [
+            .field(
+                "outcome",
+                record.outcome.rawValue
+            ),
+            .field(
+                "kind",
+                record.incident.kind.rawValue
+            ),
+            .field(
+                "stage",
+                record.incident.stage.rawValue
+            ),
+            .field(
+                "model_invocations",
+                String(await state.invocationCount())
+            ),
+        ]
+    },
 ]

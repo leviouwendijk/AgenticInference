@@ -226,10 +226,34 @@ public struct AgentInferenceAttemptExecutor:
                 invocationMode = .initial
             }
 
-            let invocationPermit = try realization.budget.nextInvocation(
-                priorAttempts: priorAttempts,
-                currentInvocations: invocations
-            )
+            let invocationPermit: AgentInferenceInvocationPermit
+
+            do {
+                invocationPermit = try realization.budget.nextInvocation(
+                    priorAttempts: priorAttempts,
+                    currentInvocations: invocations
+                )
+            } catch {
+                guard !invocations.isEmpty else {
+                    throw error
+                }
+
+                let recoveryRecord = activeRecovery?.record(
+                    outcome: .failed
+                )
+
+                throw terminalFailure(
+                    error: error,
+                    recovery: recoveryRecord,
+                    attemptIndex: attemptIndex,
+                    adapter: adapter.identifier,
+                    selection: lastSelection,
+                    invocations: invocations,
+                    recoveries: recoveries,
+                    metadata: lastMetadata
+                )
+            }
+
             let invocationIndex = invocationPermit.index
 
             var selection = realization.modelSelection
@@ -457,36 +481,80 @@ public struct AgentInferenceAttemptExecutor:
                         incident.kind == recovery.incident.kind,
                         incident.stage == recovery.incident.stage
                     else {
-                        throw AgentInferenceRecoveryError(
-                            record: recovery.record(
-                                outcome: .failed
-                            ),
-                            message: message
+                        let recoveryRecord = recovery.record(
+                            outcome: .failed
+                        )
+
+                        throw terminalFailure(
+                            error: error,
+                            recovery: recoveryRecord,
+                            attemptIndex: attemptIndex,
+                            adapter: adapter.identifier,
+                            selection: selection,
+                            invocations: invocations,
+                            recoveries: recoveries,
+                            metadata: metadata
                         )
                     }
 
-                    guard let repairingAdapter = adapter as? any AgentInferenceOutputRepairing else {
-                        throw AgentInferenceRecoveryError(
-                            record: recovery.record(
-                                outcome: .propagated
-                            ),
-                            message: message
+                    guard let repairingAdapter =
+                        adapter as? any AgentInferenceOutputRepairing
+                    else {
+                        let recoveryRecord = recovery.record(
+                            outcome: .propagated
+                        )
+
+                        throw terminalFailure(
+                            error: error,
+                            recovery: recoveryRecord,
+                            attemptIndex: attemptIndex,
+                            adapter: adapter.identifier,
+                            selection: selection,
+                            invocations: invocations,
+                            recoveries: recoveries,
+                            metadata: metadata
                         )
                     }
 
-                    adaptation = try repairingAdapter.repair(
-                        inference,
-                        input: input,
-                        response: result.response,
-                        error: error,
-                        realization: realization
-                    )
+                    do {
+                        adaptation = try repairingAdapter.repair(
+                            inference,
+                            input: input,
+                            response: result.response,
+                            error: error,
+                            realization: realization
+                        )
+                    } catch {
+                        let recoveryRecord = recovery.record(
+                            outcome: .failed
+                        )
+
+                        throw terminalFailure(
+                            error: error,
+                            recovery: recoveryRecord,
+                            attemptIndex: attemptIndex,
+                            adapter: adapter.identifier,
+                            selection: selection,
+                            invocations: invocations,
+                            recoveries: recoveries,
+                            metadata: metadata
+                        )
+                    }
+
                     activeRecovery = recovery
                     continue
                 }
 
                 guard let incident else {
-                    throw error
+                    throw terminalFailure(
+                        error: error,
+                        attemptIndex: attemptIndex,
+                        adapter: adapter.identifier,
+                        selection: selection,
+                        invocations: invocations,
+                        recoveries: recoveries,
+                        metadata: metadata
+                    )
                 }
 
                 let plan = realization.recovery?.plan(
@@ -498,31 +566,46 @@ public struct AgentInferenceAttemptExecutor:
                     let step = plan.steps.first,
                     step.action == .repair_output
                 else {
-                    throw AgentInferenceRecoveryError(
+                    let recoveryRecord = AgentInferenceRecoveryError(
                         propagating: incident,
                         plan: plan,
                         message: message
+                    ).record
+
+                    throw terminalFailure(
+                        error: error,
+                        recovery: recoveryRecord,
+                        attemptIndex: attemptIndex,
+                        adapter: adapter.identifier,
+                        selection: selection,
+                        invocations: invocations,
+                        recoveries: recoveries,
+                        metadata: metadata
                     )
                 }
 
                 guard let repairingAdapter =
                     adapter as? any AgentInferenceOutputRepairing
                 else {
-                    throw AgentInferenceRecoveryError(
+                    let recoveryRecord = AgentInferenceRecoveryError(
                         propagating: incident,
                         plan: plan,
                         message: message
+                    ).record
+
+                    throw terminalFailure(
+                        error: error,
+                        recovery: recoveryRecord,
+                        attemptIndex: attemptIndex,
+                        adapter: adapter.identifier,
+                        selection: selection,
+                        invocations: invocations,
+                        recoveries: recoveries,
+                        metadata: metadata
                     )
                 }
 
-                adaptation = try repairingAdapter.repair(
-                    inference,
-                    input: input,
-                    response: result.response,
-                    error: error,
-                    realization: realization
-                )
-                activeRecovery = AgentInferenceActiveRecovery(
+                let recovery = AgentInferenceActiveRecovery(
                     incident: incident,
                     plan: plan,
                     decision: Recovery.Decision(
@@ -530,6 +613,33 @@ public struct AgentInferenceAttemptExecutor:
                     ),
                     message: message
                 )
+
+                do {
+                    adaptation = try repairingAdapter.repair(
+                        inference,
+                        input: input,
+                        response: result.response,
+                        error: error,
+                        realization: realization
+                    )
+                } catch {
+                    let recoveryRecord = recovery.record(
+                        outcome: .failed
+                    )
+
+                    throw terminalFailure(
+                        error: error,
+                        recovery: recoveryRecord,
+                        attemptIndex: attemptIndex,
+                        adapter: adapter.identifier,
+                        selection: selection,
+                        invocations: invocations,
+                        recoveries: recoveries,
+                        metadata: metadata
+                    )
+                }
+
+                activeRecovery = recovery
                 continue
             }
 

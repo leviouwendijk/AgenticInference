@@ -486,6 +486,7 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             "decoding",
             "classification",
             "propagation",
+            "evidence",
         ]
     ) {
         let state = OutputRepairFixtureState()
@@ -506,7 +507,7 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             budget: .singleAttempt
         )
 
-        let failureRecord: Recovery.Record?
+        let terminalFailure: AgentInferenceAttemptFailure?
 
         do {
             _ = try await executor.execute(
@@ -516,16 +517,27 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
                 ),
                 realization: realization
             )
-            failureRecord = nil
-        } catch let error as AgentInferenceRecoveryError {
-            failureRecord = error.record
+            terminalFailure = nil
+        } catch let error as AgentInferenceAttemptFailure {
+            terminalFailure = error
         } catch {
             throw error
         }
 
+        let failure = try Expect.notNil(
+            terminalFailure,
+            "classified decoding propagation preserves the failed semantic attempt"
+        )
         let record = try Expect.notNil(
-            failureRecord,
-            "classified decoding failure propagates as structured recovery evidence even without a repair policy"
+            failure.recovery,
+            "classified decoding propagation remains attached to the failed attempt"
+        )
+        let invocation = try Expect.notNil(
+            failure.record.invocations.first,
+            "failed decoding attempt retains the provider invocation that produced the malformed response"
+        )
+        let budgetUsage = AgentInferenceBudgetUsage(
+            attempts: [failure.record]
         )
 
         try Expect.equal(
@@ -578,6 +590,41 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             true,
             "propagated decoding record retains structured error evidence"
         )
+        try Expect.equal(
+            failure.record.invocations.count,
+            1,
+            "failed semantic attempt retains exactly the provider call already performed"
+        )
+        try Expect.equal(
+            invocation.usage?.totalTokens,
+            2,
+            "failed semantic attempt preserves token usage from the successful provider response"
+        )
+        try Expect.equal(
+            budgetUsage.invocationCount,
+            1,
+            "budget accounting counts provider work inside a failed semantic attempt"
+        )
+        try Expect.equal(
+            budgetUsage.totalTokens,
+            2,
+            "budget accounting retains token spend even though decoding later failed"
+        )
+        try Expect.equal(
+            failure.record.route == nil,
+            true,
+            "failed semantic attempt does not masquerade as a successful routed attempt"
+        )
+        try Expect.equal(
+            failure.record.usage == nil,
+            true,
+            "failed semantic attempt exposes no top-level success usage while nested invocation usage remains authoritative"
+        )
+        try Expect.equal(
+            failure.record.recoveries.last?.outcome,
+            .propagated,
+            "failed semantic attempt retains the propagated recovery decision"
+        )
 
         return [
             .field(
@@ -595,6 +642,192 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             .field(
                 "model_invocations",
                 String(await state.invocationCount())
+            ),
+            .field(
+                "recorded_invocations",
+                String(failure.record.invocations.count)
+            ),
+            .field(
+                "recorded_tokens",
+                String(budgetUsage.totalTokens ?? 0)
+            ),
+        ]
+    },
+    TestFlow(
+        "inference-output-repair-budget-failure-evidence",
+        tags: [
+            "agentic-inference",
+            "recovery",
+            "structured-output",
+            "decoding",
+            "repair",
+            "budget",
+            "evidence",
+        ]
+    ) {
+        let state = OutputRepairFixtureState()
+        let executor = AgentInferenceExecutor(
+            modelInvoker: OutputRepairFixtureModelInvoker(
+                state: state
+            ),
+            adapters: OutputRepairFixtureAdapterResolver(),
+            defaultAdapterIdentifier:
+                "output_repair_fixture_adapter",
+            recoveryClassifier:
+                OutputRepairFixtureClassifier()
+        )
+        let policy = Recovery.Policy(
+            rules: [
+                .init(
+                    match: .init(
+                        kind: .structured_output_invalid,
+                        stage: .decoding,
+                        scope: .inference,
+                        effectState: Recovery.EffectState.none,
+                        retrySafety: .safe
+                    ),
+                    plan: .init(
+                        steps: [
+                            .init(
+                                action: .repair_output,
+                                limit: .once
+                            ),
+                            .init(
+                                action: .propagate,
+                                limit: .once
+                            ),
+                        ]
+                    )
+                ),
+            ]
+        )
+        let budget = try AgentInferenceBudget(
+            maximumAttempts: 1,
+            maximumTotalTokens: 2
+        )
+        let realization = AgentInferenceRealization(
+            strategy: .direct,
+            modelSelection: .executor,
+            instructions: "Return the fixture output.",
+            budget: budget,
+            recovery: policy
+        )
+
+        let terminalFailure: AgentInferenceAttemptFailure?
+
+        do {
+            _ = try await executor.execute(
+                OutputRepairFixtureInference.self,
+                input: .init(
+                    value: "fixture"
+                ),
+                realization: realization
+            )
+            terminalFailure = nil
+        } catch let error as AgentInferenceAttemptFailure {
+            terminalFailure = error
+        } catch {
+            throw error
+        }
+
+        let failure = try Expect.notNil(
+            terminalFailure,
+            "repair blocked by token budget preserves the failed semantic attempt"
+        )
+        let recovery = try Expect.notNil(
+            failure.recovery,
+            "budget-blocked repair retains the decoding recovery context"
+        )
+        let invocation = try Expect.notNil(
+            failure.record.invocations.first,
+            "budget-blocked repair retains the malformed provider response invocation"
+        )
+        let budgetUsage = AgentInferenceBudgetUsage(
+            attempts: [failure.record]
+        )
+
+        try Expect.equal(
+            await state.invocationCount(),
+            1,
+            "token budget prevents a second provider invocation"
+        )
+        try Expect.equal(
+            await state.sawRepairRequest(),
+            false,
+            "repair adaptation is never sent after the invocation budget refuses it"
+        )
+        try Expect.equal(
+            recovery.incident.kind,
+            .structured_output_invalid,
+            "budget failure does not erase the decoding incident that motivated repair"
+        )
+        try Expect.equal(
+            recovery.incident.stage,
+            .decoding,
+            "budget failure retains decoding as the recovery incident stage"
+        )
+        try Expect.equal(
+            recovery.outcome,
+            .failed,
+            "mechanical repair is recorded as failed when the global inference budget prevents its provider call"
+        )
+        try Expect.equal(
+            recovery.attempts.count,
+            0,
+            "budget refusal before the repair provider call does not invent a recovery attempt"
+        )
+        try Expect.equal(
+            failure.record.invocations.count,
+            1,
+            "failed attempt retains only the provider invocation actually performed"
+        )
+        try Expect.equal(
+            invocation.usage?.totalTokens,
+            2,
+            "already-paid malformed response preserves its reported token usage"
+        )
+        try Expect.equal(
+            budgetUsage.invocationCount,
+            1,
+            "failed-attempt budget usage counts exactly the provider invocation that escaped"
+        )
+        try Expect.equal(
+            budgetUsage.totalTokens,
+            2,
+            "failed-attempt budget usage preserves the exact spend that caused the token ceiling"
+        )
+        try Expect.equal(
+            failure.record.route == nil,
+            true,
+            "budget-blocked failed attempt remains semantically failed rather than exposing a success route"
+        )
+        try Expect.equal(
+            failure.record.usage == nil,
+            true,
+            "budget-blocked failed attempt keeps cost evidence at invocation granularity"
+        )
+        try Expect.equal(
+            failure.record.recoveries.last?.outcome,
+            .failed,
+            "failed attempt retains the recovery failure caused by the budget boundary"
+        )
+
+        return [
+            .field(
+                "recovery_outcome",
+                recovery.outcome.rawValue
+            ),
+            .field(
+                "model_invocations",
+                String(await state.invocationCount())
+            ),
+            .field(
+                "recorded_invocations",
+                String(failure.record.invocations.count)
+            ),
+            .field(
+                "recorded_tokens",
+                String(budgetUsage.totalTokens ?? 0)
             ),
         ]
     },

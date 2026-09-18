@@ -1,16 +1,18 @@
 import Agentic
 
-public struct AgentInferenceAdaptation: Sendable {
-    public var request: AgentRequest
+public struct InferenceExecutionContext: Sendable {
+    public var modelSelection: AgentModelSelection
     public var requirements: AgentModelRequirements
 
     public init(
-        request: AgentRequest,
+        modelSelection: AgentModelSelection = .executor,
         requirements: AgentModelRequirements = AgentModelRequirements(
             capabilities: []
         )
     ) {
-        self.request = request
+        self.modelSelection = modelSelection
         self.requirements = requirements
     }
+
+    public static let `default` = Self()
 }

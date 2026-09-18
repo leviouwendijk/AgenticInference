@@ -24,10 +24,10 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
             ]
         ) {
             let strategies = [
-                AgentInferenceStrategyIdentifier.direct.rawValue,
-                AgentInferenceStrategyIdentifier.native_reasoning.rawValue,
-                AgentInferenceStrategyIdentifier.sampled.rawValue,
-                AgentInferenceStrategyIdentifier.refining.rawValue,
+                InferenceStrategyIdentifier.direct.rawValue,
+                InferenceStrategyIdentifier.native_reasoning.rawValue,
+                InferenceStrategyIdentifier.sampled.rawValue,
+                InferenceStrategyIdentifier.refining.rawValue,
             ]
 
             try Expect.equal(
@@ -41,9 +41,8 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
                 "well-known inference strategy identifiers"
             )
 
-            let realization = AgentInferenceRealization(
+            let realization = InferenceRealizationConfiguration(
                 strategy: .direct,
-                modelSelection: .executor,
                 instructions: "Return the fixture output.",
                 budget: .singleAttempt
             )
@@ -76,7 +75,7 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
                 "direct",
             ]
         ) {
-            try await AgentInferenceExecutionFlowTests.runDirect()
+            try await InferenceExecutionFlowTests.runDirect()
         },
         TestFlow(
             "native-reasoning-inference-execution",
@@ -87,7 +86,7 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
                 "native-reasoning",
             ]
         ) {
-            try await AgentInferenceExecutionFlowTests.runNativeReasoning()
+            try await InferenceExecutionFlowTests.runNativeReasoning()
         },
         TestFlow(
             "determine-next-action",
@@ -98,7 +97,7 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
                 "action-selection",
             ]
         ) {
-            try AgentInferenceFlowTesting.runDetermineNextAction()
+            try InferenceFlowTesting.runDetermineNextAction()
         },
         TestFlow(
             "assess-candidate-action",
@@ -109,7 +108,7 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
                 "action",
             ]
         ) {
-            try AgentInferenceFlowTesting.runAssessCandidateAction()
+            try InferenceFlowTesting.runAssessCandidateAction()
         },
         TestFlow(
             "inference-budget-accounting",
@@ -121,7 +120,7 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
                 "multi-attempt",
             ]
         ) {
-            try await AgentInferenceExecutionFlowTests
+            try await InferenceExecutionFlowTests
                 .runBudgetAccounting()
         },
         TestFlow(
@@ -135,7 +134,7 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
                 "multi-attempt",
             ]
         ) {
-            try await AgentInferenceExecutionFlowTests
+            try await InferenceExecutionFlowTests
                 .runSampled()
         },
         TestFlow(
@@ -149,12 +148,12 @@ enum AgenticInferenceFlowSuite: TestFlowRegistry {
                 "multi-attempt",
             ]
         ) {
-            try await AgentInferenceExecutionFlowTests
+            try await InferenceExecutionFlowTests
                 .runRefining()
         },
     ]
-        + agentInferenceRecoveryFlows
-        + agentInferenceTransportRecoveryFlows
-        + agentInferenceOutputRepairRecoveryFlows
-        + agentInferenceStrategyRecoveryTransparencyFlows
+        + inferenceRecoveryFlows
+        + inferenceTransportRecoveryFlows
+        + inferenceOutputRepairRecoveryFlows
+        + inferenceStrategyRecoveryTransparencyFlows
 }

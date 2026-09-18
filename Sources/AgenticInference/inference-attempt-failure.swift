@@ -7,25 +7,25 @@ import Foundation
 /// The record is the canonical evidence accumulated by the attempt before it
 /// became unable to continue. Higher execution layers may add strategy-level
 /// context, but must not reconstruct or discard this evidence.
-public struct AgentInferenceAttemptFailure:
+public struct InferenceAttemptFailure:
     Error,
     Sendable,
     LocalizedError
 {
-    public let failure: AgentInferenceFailureRecord
-    public let record: AgentInferenceAttemptRecord
+    public let failure: InferenceFailureRecord
+    public let record: InferenceAttemptRecord
 
     public init(
         index: Int,
-        adapter: AgentInferenceAdapterIdentifier,
+        adapter: InferenceAdapterIdentifier,
         selection: AgentModelSelection,
-        failure: AgentInferenceFailureRecord,
-        invocations: [AgentInferenceInvocationRecord] = [],
+        failure: InferenceFailureRecord,
+        invocations: [InferenceInvocationRecord] = [],
         recoveries: [Recovery.Record] = [],
         metadata: [String: String] = [:]
     ) {
         self.failure = failure
-        self.record = AgentInferenceAttemptRecord(
+        self.record = InferenceAttemptRecord(
             index: index,
             adapter: adapter,
             selection: selection,

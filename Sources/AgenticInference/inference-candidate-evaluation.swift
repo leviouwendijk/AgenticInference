@@ -1,6 +1,7 @@
+import Agentic
 import Foundation
 
-public enum AgentInferenceCandidateScoreParsingError:
+public enum InferenceCandidateScoreParsingError:
     Error,
     Sendable,
     LocalizedError
@@ -15,7 +16,7 @@ public enum AgentInferenceCandidateScoreParsingError:
     }
 }
 
-public struct AgentInferenceCandidateScore:
+public struct InferenceCandidateScore:
     Sendable,
     Codable,
     Hashable
@@ -33,7 +34,7 @@ public struct AgentInferenceCandidateScore:
         metadata: [String: String] = [:]
     ) throws {
         guard score.isFinite else {
-            throw AgentInferenceCandidateScoreParsingError.nonFinite(
+            throw InferenceCandidateScoreParsingError.nonFinite(
                 score
             )
         }
@@ -79,25 +80,25 @@ public struct AgentInferenceCandidateScore:
     }
 }
 
-public protocol AgentInferenceCandidateEvaluating: Sendable {
-    var identifier: AgentInferenceEvaluatorIdentifier { get }
+public protocol InferenceCandidateEvaluating: Sendable {
+    var identifier: InferenceEvaluatorIdentifier { get }
 
-    func evaluate<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        output: Inference.Output,
-        attempt: AgentInferenceAttemptRecord
-    ) async throws -> AgentInferenceCandidateScore
+    func evaluate<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        output: InferenceType.Output,
+        attempt: InferenceAttemptRecord
+    ) async throws -> InferenceCandidateScore
 }
 
-public struct AgentInferenceSampleEvaluation:
+public struct InferenceSampleEvaluation:
     Sendable,
     Codable,
     Hashable
 {
     public let attemptIndex: Int
-    public let evaluator: AgentInferenceEvaluatorIdentifier
-    public let evaluation: AgentInferenceCandidateScore
+    public let evaluator: InferenceEvaluatorIdentifier
+    public let evaluation: InferenceCandidateScore
 
     public var score: Double {
         evaluation.score
@@ -116,8 +117,8 @@ public struct AgentInferenceSampleEvaluation:
 
     public init(
         attemptIndex: Int,
-        evaluator: AgentInferenceEvaluatorIdentifier,
-        evaluation: AgentInferenceCandidateScore
+        evaluator: InferenceEvaluatorIdentifier,
+        evaluation: InferenceCandidateScore
     ) {
         self.attemptIndex = attemptIndex
         self.evaluator = evaluator
@@ -137,10 +138,10 @@ public struct AgentInferenceSampleEvaluation:
                 forKey: .attemptIndex
             ),
             evaluator: try container.decode(
-                AgentInferenceEvaluatorIdentifier.self,
+                InferenceEvaluatorIdentifier.self,
                 forKey: .evaluator
             ),
-            evaluation: try AgentInferenceCandidateScore(
+            evaluation: try InferenceCandidateScore(
                 score: try container.decode(
                     Double.self,
                     forKey: .score
@@ -179,18 +180,18 @@ public struct AgentInferenceSampleEvaluation:
     }
 }
 
-public struct AgentInferenceSamplingRecord:
+public struct InferenceSamplingRecord:
     Sendable,
     Codable,
     Hashable
 {
-    public var evaluator: AgentInferenceEvaluatorIdentifier
-    public var evaluations: [AgentInferenceSampleEvaluation]
+    public var evaluator: InferenceEvaluatorIdentifier
+    public var evaluations: [InferenceSampleEvaluation]
     public var selectedAttemptIndex: Int
 
     public init(
-        evaluator: AgentInferenceEvaluatorIdentifier,
-        evaluations: [AgentInferenceSampleEvaluation],
+        evaluator: InferenceEvaluatorIdentifier,
+        evaluations: [InferenceSampleEvaluation],
         selectedAttemptIndex: Int
     ) {
         self.evaluator = evaluator

@@ -6,12 +6,12 @@ import Agentic
 ///
 /// Repair remains adapter-owned because the adapter owns the lowering and
 /// decoding conventions required to construct an equivalent repair request.
-public protocol AgentInferenceOutputRepairing: Sendable {
-    func repair<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
+public protocol InferenceOutputRepairing: Sendable {
+    func repair<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
         response: AgentResponse,
         error: any Error,
-        realization: AgentInferenceRealization
-    ) throws -> AgentInferenceAdaptation
+        realization: InferenceRealizationConfiguration
+    ) throws -> InferenceAdaptation
 }

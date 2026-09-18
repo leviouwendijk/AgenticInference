@@ -3,7 +3,7 @@ import AgenticInference
 import Foundation
 import TestFlows
 
-private struct RefiningFixtureInference: AgentInference {
+private struct RefiningFixtureInference: Inference {
     struct Input:
         Sendable,
         Codable
@@ -13,25 +13,25 @@ private struct RefiningFixtureInference: AgentInference {
 
     typealias Output = String
 
-    static let definition = AgentInferenceDefinition(
+    static let definition = InferenceDefinition(
         identifier: "fixture.refining_execution",
         purpose: "Prove iterative typed inference refinement."
     )
 }
 
 private struct RefiningFixtureAdapter:
-    AgentInferenceAdapter,
+    InferenceAdapter,
     Sendable
 {
-    let identifier: AgentInferenceAdapterIdentifier =
+    let identifier: InferenceAdapterIdentifier =
         "refining_fixture_adapter"
 
-    func prepare<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        realization: AgentInferenceRealization
-    ) throws -> AgentInferenceAdaptation {
-        AgentInferenceAdaptation(
+    func prepare<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        realization: InferenceRealizationConfiguration
+    ) throws -> InferenceAdaptation {
+        InferenceAdaptation(
             request: AgentRequest(
                 messages: [
                     AgentMessage(
@@ -52,12 +52,12 @@ private struct RefiningFixtureAdapter:
         )
     }
 
-    func decode<Inference: AgentInference>(
-        _ inference: Inference.Type,
+    func decode<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
         response: AgentResponse
-    ) throws -> Inference.Output {
+    ) throws -> InferenceType.Output {
         try JSONDecoder().decode(
-            Inference.Output.self,
+            InferenceType.Output.self,
             from: Data(
                 response.message.content.text.utf8
             )
@@ -66,14 +66,14 @@ private struct RefiningFixtureAdapter:
 }
 
 private struct RefiningFixtureAdapterResolver:
-    AgentInferenceAdapterResolving,
+    InferenceAdapterResolving,
     Sendable
 {
     let adapter = RefiningFixtureAdapter()
 
     func require(
-        _ identifier: AgentInferenceAdapterIdentifier
-    ) throws -> any AgentInferenceAdapter {
+        _ identifier: InferenceAdapterIdentifier
+    ) throws -> any InferenceAdapter {
         guard identifier == adapter.identifier else {
             throw RefiningFixtureError.unknownAdapter(
                 identifier.rawValue
@@ -188,10 +188,10 @@ private struct RefiningFixtureModelInvoker:
 }
 
 private struct RefiningFixtureGuide:
-    AgentInferenceRefinementGuiding,
+    InferenceRefinementGuiding,
     Sendable
 {
-    let identifier: AgentInferenceRefinementGuideIdentifier =
+    let identifier: InferenceRefinementGuideIdentifier =
         "fixture_refinement"
     let failingAttemptIndex: Int?
 
@@ -201,13 +201,13 @@ private struct RefiningFixtureGuide:
         self.failingAttemptIndex = failingAttemptIndex
     }
 
-    func guide<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        output: Inference.Output,
-        attempt: AgentInferenceAttemptRecord,
-        realization: AgentInferenceRealization
-    ) async throws -> AgentInferenceRefinementDecision {
+    func guide<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        output: InferenceType.Output,
+        attempt: InferenceAttemptRecord,
+        realization: InferenceRealizationConfiguration
+    ) async throws -> InferenceRefinementDecision {
         if failingAttemptIndex == attempt.index {
             throw RefiningFixtureError.guideFailed(
                 attempt.index
@@ -224,38 +224,38 @@ private struct RefiningFixtureGuide:
 
         switch value {
         case "ROUGH":
-            return AgentInferenceRefinementDecision(
-                evaluation: try AgentInferenceCandidateScore(
+            return InferenceRefinementDecision(
+                evaluation: try InferenceCandidateScore(
                     score: 0.2,
                     metadata: [
                         "value": value,
                     ]
                 ),
                 directive: .continueWith(
-                    try AgentInferenceRefinementInstructions(
+                    try InferenceRefinementInstructions(
                         "Improve the ROUGH candidate into a BETTER candidate."
                     )
                 )
             )
 
         case "BETTER":
-            return AgentInferenceRefinementDecision(
-                evaluation: try AgentInferenceCandidateScore(
+            return InferenceRefinementDecision(
+                evaluation: try InferenceCandidateScore(
                     score: 0.7,
                     metadata: [
                         "value": value,
                     ]
                 ),
                 directive: .continueWith(
-                    try AgentInferenceRefinementInstructions(
+                    try InferenceRefinementInstructions(
                         "Improve the BETTER candidate into the FINAL candidate."
                     )
                 )
             )
 
         case "FINAL":
-            return AgentInferenceRefinementDecision(
-                evaluation: try AgentInferenceCandidateScore(
+            return InferenceRefinementDecision(
+                evaluation: try InferenceCandidateScore(
                     score: 1.0,
                     metadata: [
                         "value": value,
@@ -283,7 +283,7 @@ private enum RefiningFixtureError:
     case streamingUnsupported
 }
 
-extension AgentInferenceExecutionFlowTests {
+extension InferenceExecutionFlowTests {
     static func runRefining()
         async throws
         -> [TestFlowDiagnostic]
@@ -296,18 +296,17 @@ extension AgentInferenceExecutionFlowTests {
             ]
         )
         let guide = RefiningFixtureGuide()
-        let executor = AgentInferenceExecutor(
+        let executor = InferenceExecutor(
             modelInvoker: RefiningFixtureModelInvoker(
                 state: state
             ),
             adapters: RefiningFixtureAdapterResolver(),
             refinementGuide: guide
         )
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .refining,
-            modelSelection: .executor,
             instructions: "Produce the initial candidate.",
-            budget: try AgentInferenceBudget(
+            budget: try InferenceBudget(
                 maximumAttempts: 4
             ),
             adapter: "refining_fixture_adapter"
@@ -379,10 +378,10 @@ extension AgentInferenceExecutionFlowTests {
         var emptyInstructionsRejected = false
 
         do {
-            _ = try AgentInferenceRefinementInstructions(
+            _ = try InferenceRefinementInstructions(
                 "   "
             )
-        } catch AgentInferenceRefinementInstructionsParsingError.empty {
+        } catch InferenceRefinementInstructionsParsingError.empty {
             emptyInstructionsRejected = true
         }
 
@@ -396,7 +395,7 @@ extension AgentInferenceExecutionFlowTests {
             result.record
         )
         let decodedRecord = try JSONDecoder().decode(
-            AgentInferenceExecutionRecord.self,
+            InferenceExecutionRecord.self,
             from: encodedRecord
         )
 
@@ -411,14 +410,14 @@ extension AgentInferenceExecutionFlowTests {
                 "ROUGH",
             ]
         )
-        let failureExecutor = AgentInferenceExecutor(
+        let failureExecutor = InferenceExecutor(
             modelInvoker: RefiningFixtureModelInvoker(
                 state: failureState
             ),
             adapters: RefiningFixtureAdapterResolver(),
             refinementGuide: guide
         )
-        let executionFailure: AgentInferenceExecutionFailure?
+        let executionFailure: InferenceExecutionFailure?
 
         do {
             _ = try await failureExecutor.execute(
@@ -426,18 +425,17 @@ extension AgentInferenceExecutionFlowTests {
                 input: .init(
                     value: "terminal-failure"
                 ),
-                realization: AgentInferenceRealization(
+                realization: InferenceRealizationConfiguration(
                     strategy: .refining,
-                    modelSelection: .executor,
                     instructions: "Preserve completed refinement work when a later attempt fails.",
-                    budget: try AgentInferenceBudget(
+                    budget: try InferenceBudget(
                         maximumAttempts: 2
                     ),
                     adapter: "refining_fixture_adapter"
                 )
             )
             executionFailure = nil
-        } catch let error as AgentInferenceExecutionFailure {
+        } catch let error as InferenceExecutionFailure {
             executionFailure = error
         } catch {
             throw error
@@ -528,7 +526,7 @@ extension AgentInferenceExecutionFlowTests {
                 "BETTER",
             ]
         )
-        let guideFailureExecutor = AgentInferenceExecutor(
+        let guideFailureExecutor = InferenceExecutor(
             modelInvoker: RefiningFixtureModelInvoker(
                 state: guideFailureState
             ),
@@ -537,7 +535,7 @@ extension AgentInferenceExecutionFlowTests {
                 failingAttemptIndex: 1
             )
         )
-        let guideExecutionFailure: AgentInferenceExecutionFailure?
+        let guideExecutionFailure: InferenceExecutionFailure?
 
         do {
             _ = try await guideFailureExecutor.execute(
@@ -545,18 +543,17 @@ extension AgentInferenceExecutionFlowTests {
                 input: .init(
                     value: "guide-failure"
                 ),
-                realization: AgentInferenceRealization(
+                realization: InferenceRealizationConfiguration(
                     strategy: .refining,
-                    modelSelection: .executor,
                     instructions: "Preserve paid attempts when refinement guidance fails.",
-                    budget: try AgentInferenceBudget(
+                    budget: try InferenceBudget(
                         maximumAttempts: 2
                     ),
                     adapter: "refining_fixture_adapter"
                 )
             )
             guideExecutionFailure = nil
-        } catch let error as AgentInferenceExecutionFailure {
+        } catch let error as InferenceExecutionFailure {
             guideExecutionFailure = error
         } catch {
             throw error

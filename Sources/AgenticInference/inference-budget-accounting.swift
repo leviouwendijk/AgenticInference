@@ -1,6 +1,7 @@
+import Agentic
 import Foundation
 
-public struct AgentInferenceAttemptPermit:
+public struct InferenceAttemptPermit:
     Sendable,
     Hashable
 {
@@ -13,7 +14,7 @@ public struct AgentInferenceAttemptPermit:
     }
 }
 
-public struct AgentInferenceInvocationPermit:
+public struct InferenceInvocationPermit:
     Sendable,
     Hashable
 {
@@ -26,7 +27,7 @@ public struct AgentInferenceInvocationPermit:
     }
 }
 
-public struct AgentInferenceBudgetUsage:
+public struct InferenceBudgetUsage:
     Sendable,
     Codable,
     Hashable
@@ -40,8 +41,8 @@ public struct AgentInferenceBudgetUsage:
     public var unreportedTokenInvocationCount: Int
 
     public init(
-        attempts: [AgentInferenceAttemptRecord],
-        additionalInvocations: [AgentInferenceInvocationRecord] = []
+        attempts: [InferenceAttemptRecord],
+        additionalInvocations: [InferenceInvocationRecord] = []
     ) {
         let invocations = attempts.flatMap(\.invocations)
             + additionalInvocations
@@ -71,7 +72,7 @@ public struct AgentInferenceBudgetUsage:
     }
 }
 
-public enum AgentInferenceBudgetError:
+public enum InferenceBudgetError:
     Error,
     Sendable,
     LocalizedError
@@ -112,21 +113,21 @@ public enum AgentInferenceBudgetError:
     }
 }
 
-public extension AgentInferenceBudget {
+public extension InferenceBudget {
     /// Constructs permission to begin the next semantic inference attempt.
     func nextAttempt(
-        priorAttempts: [AgentInferenceAttemptRecord]
-    ) throws -> AgentInferenceAttemptPermit {
+        priorAttempts: [InferenceAttemptRecord]
+    ) throws -> InferenceAttemptPermit {
         let index = priorAttempts.count
 
         guard index < maximumAttempts else {
-            throw AgentInferenceBudgetError.maximumAttemptsReached(
+            throw InferenceBudgetError.maximumAttemptsReached(
                 maximumAttempts: maximumAttempts,
                 requestedAttemptIndex: index
             )
         }
 
-        return AgentInferenceAttemptPermit(
+        return InferenceAttemptPermit(
             index: index
         )
     }
@@ -134,37 +135,37 @@ public extension AgentInferenceBudget {
     /// Constructs permission for another model invocation inside the current
     /// semantic inference attempt.
     func nextInvocation(
-        priorAttempts: [AgentInferenceAttemptRecord],
-        currentInvocations: [AgentInferenceInvocationRecord] = []
-    ) throws -> AgentInferenceInvocationPermit {
+        priorAttempts: [InferenceAttemptRecord],
+        currentInvocations: [InferenceInvocationRecord] = []
+    ) throws -> InferenceInvocationPermit {
         let index = currentInvocations.count
 
         guard let maximumTotalTokens else {
-            return AgentInferenceInvocationPermit(
+            return InferenceInvocationPermit(
                 index: index
             )
         }
 
-        let usage = AgentInferenceBudgetUsage(
+        let usage = InferenceBudgetUsage(
             attempts: priorAttempts,
             additionalInvocations: currentInvocations
         )
 
         guard let consumedTotalTokens = usage.totalTokens else {
-            throw AgentInferenceBudgetError.totalTokenUsageUnavailable(
+            throw InferenceBudgetError.totalTokenUsageUnavailable(
                 maximumTotalTokens: maximumTotalTokens,
                 priorInvocationCount: usage.invocationCount
             )
         }
 
         guard consumedTotalTokens < maximumTotalTokens else {
-            throw AgentInferenceBudgetError.maximumTotalTokensReached(
+            throw InferenceBudgetError.maximumTotalTokensReached(
                 maximumTotalTokens: maximumTotalTokens,
                 consumedTotalTokens: consumedTotalTokens
             )
         }
 
-        return AgentInferenceInvocationPermit(
+        return InferenceInvocationPermit(
             index: index
         )
     }

@@ -2,7 +2,7 @@ import Agentic
 import AgenticRecovery
 import Foundation
 
-private struct AgentInferenceActiveRecovery {
+private struct InferenceActiveRecovery {
     let incident: Recovery.Incident
     let plan: Recovery.Plan
     let decision: Recovery.Decision
@@ -34,10 +34,10 @@ private struct AgentInferenceActiveRecovery {
     }
 }
 
-private enum AgentInferenceInvocationMode {
+private enum InferenceInvocationMode {
     case initial
     case recovery(
-        AgentInferenceActiveRecovery,
+        InferenceActiveRecovery,
         Recovery.AttemptPermit
     )
 }
@@ -62,17 +62,17 @@ private func recoveryIncidentCapturingEvidence(
     )
 }
 
-private func classifyAgentInferenceRecoveryIncident(
+private func classifyInferenceRecoveryIncident(
     for error: any Error,
     stage: Recovery.Stage,
-    adapter: any AgentInferenceAdapter,
-    fallback: (any AgentInferenceRecoveryClassifying)?,
-    inference: AgentInferenceIdentifier,
+    adapter: any InferenceAdapter,
+    fallback: (any InferenceRecoveryClassifying)?,
+    inference: InferenceIdentifier,
     attemptIndex: Int,
     invocationIndex: Int
 ) -> Recovery.Incident? {
     if let adapterClassifier =
-        adapter as? any AgentInferenceRecoveryClassifying,
+        adapter as? any InferenceRecoveryClassifying,
        let incident = adapterClassifier.incident(
             for: error,
             stage: stage,
@@ -103,20 +103,20 @@ private func classifyAgentInferenceRecoveryIncident(
     )
 }
 
-public struct AgentInferenceAttemptExecutor:
-    AgentInferenceAttemptExecuting,
+public struct InferenceAttemptExecutor:
+    InferenceAttemptExecuting,
     Sendable
 {
     private let modelInvoker: any AgentModelInvoking
-    private let adapters: any AgentInferenceAdapterResolving
-    private let defaultAdapterIdentifier: AgentInferenceAdapterIdentifier?
-    private let recoveryClassifier: (any AgentInferenceRecoveryClassifying)?
+    private let adapters: any InferenceAdapterResolving
+    private let defaultAdapterIdentifier: InferenceAdapterIdentifier?
+    private let recoveryClassifier: (any InferenceRecoveryClassifying)?
 
     public init(
         modelInvoker: any AgentModelInvoking,
-        adapters: any AgentInferenceAdapterResolving,
-        defaultAdapterIdentifier: AgentInferenceAdapterIdentifier? = nil,
-        recoveryClassifier: (any AgentInferenceRecoveryClassifying)? = nil
+        adapters: any InferenceAdapterResolving,
+        defaultAdapterIdentifier: InferenceAdapterIdentifier? = nil,
+        recoveryClassifier: (any InferenceRecoveryClassifying)? = nil
     ) {
         self.modelInvoker = modelInvoker
         self.adapters = adapters
@@ -128,23 +128,23 @@ public struct AgentInferenceAttemptExecutor:
         error: any Error,
         recovery: Recovery.Record? = nil,
         attemptIndex: Int,
-        adapter: AgentInferenceAdapterIdentifier,
+        adapter: InferenceAdapterIdentifier,
         selection: AgentModelSelection,
-        invocations: [AgentInferenceInvocationRecord],
+        invocations: [InferenceInvocationRecord],
         recoveries: [Recovery.Record],
         metadata: [String: String]
-    ) -> AgentInferenceAttemptFailure {
+    ) -> InferenceAttemptFailure {
         var recordedRecoveries = recoveries
 
         if let recovery {
             recordedRecoveries.append(recovery)
         }
 
-        return AgentInferenceAttemptFailure(
+        return InferenceAttemptFailure(
             index: attemptIndex,
             adapter: adapter,
             selection: selection,
-            failure: AgentInferenceFailureRecord(
+            failure: InferenceFailureRecord(
                 capturing: error,
                 recovery: recovery
             ),
@@ -154,22 +154,23 @@ public struct AgentInferenceAttemptExecutor:
         )
     }
 
-    public func execute<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        realization: AgentInferenceRealization,
-        priorAttempts: [AgentInferenceAttemptRecord] = [],
+    public func execute<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        realization: InferenceRealizationConfiguration,
+        context: InferenceExecutionContext,
+        priorAttempts: [InferenceAttemptRecord] = [],
         additionalRequirements: AgentModelRequirements = AgentModelRequirements(
             capabilities: []
         )
-    ) async throws -> AgentInferenceAttemptResult<Inference.Output> {
+    ) async throws -> InferenceAttemptResult<InferenceType.Output> {
         let attemptPermit = try realization.budget.nextAttempt(
             priorAttempts: priorAttempts
         )
         let attemptIndex = attemptPermit.index
 
         guard let adapterIdentifier = realization.adapter ?? defaultAdapterIdentifier else {
-            throw AgentInferenceExecutionError.adapterUnspecified(
+            throw InferenceExecutionError.adapterUnspecified(
                 inference: inference.definition.identifier
             )
         }
@@ -183,14 +184,14 @@ public struct AgentInferenceAttemptExecutor:
             realization: realization
         )
 
-        var invocations: [AgentInferenceInvocationRecord] = []
+        var invocations: [InferenceInvocationRecord] = []
         var recoveries: [Recovery.Record] = []
-        var activeRecovery: AgentInferenceActiveRecovery?
-        var lastSelection = realization.modelSelection
+        var activeRecovery: InferenceActiveRecovery?
+        var lastSelection = context.modelSelection
         var lastMetadata = realization.metadata
 
         while true {
-            let invocationMode: AgentInferenceInvocationMode
+            let invocationMode: InferenceInvocationMode
 
             if let activeRecovery {
                 guard let recoveryPermit = activeRecovery.decision.limit.nextAttempt(
@@ -201,7 +202,7 @@ public struct AgentInferenceAttemptExecutor:
                     let recoveryRecord = activeRecovery.record(
                         outcome: .exhausted
                     )
-                    let recoveryError = AgentInferenceRecoveryError(
+                    let recoveryError = InferenceRecoveryError(
                         record: recoveryRecord,
                         message: activeRecovery.lastMessage
                     )
@@ -226,7 +227,7 @@ public struct AgentInferenceAttemptExecutor:
                 invocationMode = .initial
             }
 
-            let invocationPermit: AgentInferenceInvocationPermit
+            let invocationPermit: InferenceInvocationPermit
 
             do {
                 invocationPermit = try realization.budget.nextInvocation(
@@ -256,8 +257,11 @@ public struct AgentInferenceAttemptExecutor:
 
             let invocationIndex = invocationPermit.index
 
-            var selection = realization.modelSelection
+            var selection = context.modelSelection
             selection.requirements = selection.requirements
+                .merging(
+                    context.requirements
+                )
                 .merging(
                     adaptation.requirements
                 )
@@ -291,7 +295,7 @@ public struct AgentInferenceAttemptExecutor:
                 )
             } catch {
                 let message = error.localizedDescription
-                let incident = classifyAgentInferenceRecoveryIncident(
+                let incident = classifyInferenceRecoveryIncident(
                     for: error,
                     stage: .execution,
                     adapter: adapter,
@@ -302,7 +306,7 @@ public struct AgentInferenceAttemptExecutor:
                 )
 
                 invocations.append(
-                    AgentInferenceInvocationRecord(
+                    InferenceInvocationRecord(
                         index: invocationIndex,
                         selection: selection,
                         outcome: .failed(
@@ -338,7 +342,7 @@ public struct AgentInferenceAttemptExecutor:
                         let step = plan.steps.first,
                         step.action == .retry_same_operation
                     else {
-                        let recoveryRecord = AgentInferenceRecoveryError(
+                        let recoveryRecord = InferenceRecoveryError(
                             propagating: incident,
                             plan: plan,
                             message: message
@@ -356,7 +360,7 @@ public struct AgentInferenceAttemptExecutor:
                         )
                     }
 
-                    activeRecovery = AgentInferenceActiveRecovery(
+                    activeRecovery = InferenceActiveRecovery(
                         incident: incident,
                         plan: plan,
                         decision: Recovery.Decision(
@@ -407,7 +411,7 @@ public struct AgentInferenceAttemptExecutor:
             }
 
             invocations.append(
-                AgentInferenceInvocationRecord(
+                InferenceInvocationRecord(
                     index: invocationIndex,
                     selection: selection,
                     outcome: .succeeded(
@@ -441,7 +445,7 @@ public struct AgentInferenceAttemptExecutor:
                 activeRecovery = nil
             }
 
-            let output: Inference.Output
+            let output: InferenceType.Output
 
             do {
                 output = try adapter.decode(
@@ -450,7 +454,7 @@ public struct AgentInferenceAttemptExecutor:
                 )
             } catch {
                 let message = error.localizedDescription
-                let incident = classifyAgentInferenceRecoveryIncident(
+                let incident = classifyInferenceRecoveryIncident(
                     for: error,
                     stage: .decoding,
                     adapter: adapter,
@@ -498,7 +502,7 @@ public struct AgentInferenceAttemptExecutor:
                     }
 
                     guard let repairingAdapter =
-                        adapter as? any AgentInferenceOutputRepairing
+                        adapter as? any InferenceOutputRepairing
                     else {
                         let recoveryRecord = recovery.record(
                             outcome: .propagated
@@ -566,7 +570,7 @@ public struct AgentInferenceAttemptExecutor:
                     let step = plan.steps.first,
                     step.action == .repair_output
                 else {
-                    let recoveryRecord = AgentInferenceRecoveryError(
+                    let recoveryRecord = InferenceRecoveryError(
                         propagating: incident,
                         plan: plan,
                         message: message
@@ -585,9 +589,9 @@ public struct AgentInferenceAttemptExecutor:
                 }
 
                 guard let repairingAdapter =
-                    adapter as? any AgentInferenceOutputRepairing
+                    adapter as? any InferenceOutputRepairing
                 else {
-                    let recoveryRecord = AgentInferenceRecoveryError(
+                    let recoveryRecord = InferenceRecoveryError(
                         propagating: incident,
                         plan: plan,
                         message: message
@@ -605,7 +609,7 @@ public struct AgentInferenceAttemptExecutor:
                     )
                 }
 
-                let recovery = AgentInferenceActiveRecovery(
+                let recovery = InferenceActiveRecovery(
                     incident: incident,
                     plan: plan,
                     decision: Recovery.Decision(
@@ -664,9 +668,9 @@ public struct AgentInferenceAttemptExecutor:
                 activeRecovery = nil
             }
 
-            return AgentInferenceAttemptResult(
+            return InferenceAttemptResult(
                 output: output,
-                record: AgentInferenceAttemptRecord(
+                record: InferenceAttemptRecord(
                     index: attemptIndex,
                     adapter: adapter.identifier,
                     selection: selection,

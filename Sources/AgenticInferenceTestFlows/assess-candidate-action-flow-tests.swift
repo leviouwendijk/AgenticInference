@@ -1,8 +1,9 @@
+import Agentic
 import AgenticInference
 import Foundation
 import TestFlows
 
-extension AgentInferenceFlowTesting {
+extension InferenceFlowTesting {
     static func runAssessCandidateAction()
         throws
         -> [TestFlowDiagnostic]
@@ -31,7 +32,7 @@ extension AgentInferenceFlowTesting {
         )
         try Expect.equal(
             AssessCandidateAction.definition.identifier,
-            AgentInferenceIdentifier("assess_candidate_action"),
+            InferenceIdentifier("assess_candidate_action"),
             "assess-candidate-action exposes stable semantic inference identifier"
         )
 

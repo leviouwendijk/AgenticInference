@@ -1,7 +1,9 @@
-import Schema
+import Agentic
 import Macros
+import Schema
 
-public struct DetermineNextAction: AgentInference {
+@Inference
+public struct DetermineNextAction {
     public struct Candidate:
         Sendable,
         Codable,
@@ -55,13 +57,6 @@ public struct DetermineNextAction: AgentInference {
         }
     }
 
-    public static let definition = AgentInferenceDefinition(
-        identifier: "determine_next_action",
-        purpose: "Select the most appropriate next action from the supplied candidates for the current goal and state.",
-        title: "Determine Next Action",
-        tags: [
-            "decision",
-            "action-selection",
-        ]
-    )
+    public static let purpose =
+        "Select the most appropriate next action from the supplied candidates for the current goal and state."
 }

@@ -1,7 +1,8 @@
+import Agentic
 import Foundation
 import Primitives
 
-public struct AgentInferenceRefinementGuideIdentifier:
+public struct InferenceRefinementGuideIdentifier:
     StringIdentifier
 {
     public let rawValue: String
@@ -13,7 +14,7 @@ public struct AgentInferenceRefinementGuideIdentifier:
     }
 }
 
-public enum AgentInferenceRefinementInstructionsParsingError:
+public enum InferenceRefinementInstructionsParsingError:
     Error,
     Sendable,
     LocalizedError
@@ -28,7 +29,7 @@ public enum AgentInferenceRefinementInstructionsParsingError:
     }
 }
 
-public struct AgentInferenceRefinementInstructions:
+public struct InferenceRefinementInstructions:
     Sendable,
     Codable,
     Hashable
@@ -43,7 +44,7 @@ public struct AgentInferenceRefinementInstructions:
         )
 
         guard !normalized.isEmpty else {
-            throw AgentInferenceRefinementInstructionsParsingError.empty
+            throw InferenceRefinementInstructionsParsingError.empty
         }
 
         self.value = normalized
@@ -70,27 +71,27 @@ public struct AgentInferenceRefinementInstructions:
     }
 }
 
-public enum AgentInferenceRefinementDirective:
+public enum InferenceRefinementDirective:
     Sendable,
     Codable,
     Hashable
 {
     case stop
-    case continueWith(AgentInferenceRefinementInstructions)
+    case continueWith(InferenceRefinementInstructions)
 }
 
-public struct AgentInferenceRefinementDecision:
+public struct InferenceRefinementDecision:
     Sendable,
     Codable,
     Hashable
 {
-    public let evaluation: AgentInferenceCandidateScore
-    public let directive: AgentInferenceRefinementDirective
+    public let evaluation: InferenceCandidateScore
+    public let directive: InferenceRefinementDirective
     public let metadata: [String: String]
 
     public init(
-        evaluation: AgentInferenceCandidateScore,
-        directive: AgentInferenceRefinementDirective,
+        evaluation: InferenceCandidateScore,
+        directive: InferenceRefinementDirective,
         metadata: [String: String] = [:]
     ) {
         self.evaluation = evaluation
@@ -99,33 +100,33 @@ public struct AgentInferenceRefinementDecision:
     }
 }
 
-public protocol AgentInferenceRefinementGuiding: Sendable {
-    var identifier: AgentInferenceRefinementGuideIdentifier { get }
+public protocol InferenceRefinementGuiding: Sendable {
+    var identifier: InferenceRefinementGuideIdentifier { get }
 
-    func guide<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        output: Inference.Output,
-        attempt: AgentInferenceAttemptRecord,
-        realization: AgentInferenceRealization
-    ) async throws -> AgentInferenceRefinementDecision
+    func guide<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        output: InferenceType.Output,
+        attempt: InferenceAttemptRecord,
+        realization: InferenceRealizationConfiguration
+    ) async throws -> InferenceRefinementDecision
 }
 
-public struct AgentInferenceRefinementStep:
+public struct InferenceRefinementStep:
     Sendable,
     Codable,
     Hashable
 {
     public var attemptIndex: Int
-    public var guide: AgentInferenceRefinementGuideIdentifier
-    public var evaluation: AgentInferenceCandidateScore
+    public var guide: InferenceRefinementGuideIdentifier
+    public var evaluation: InferenceCandidateScore
     public var continued: Bool
     public var metadata: [String: String]
 
     public init(
         attemptIndex: Int,
-        guide: AgentInferenceRefinementGuideIdentifier,
-        evaluation: AgentInferenceCandidateScore,
+        guide: InferenceRefinementGuideIdentifier,
+        evaluation: InferenceCandidateScore,
         continued: Bool,
         metadata: [String: String] = [:]
     ) {
@@ -137,7 +138,7 @@ public struct AgentInferenceRefinementStep:
     }
 }
 
-public enum AgentInferenceRefinementTermination:
+public enum InferenceRefinementTermination:
     String,
     Sendable,
     Codable,
@@ -151,23 +152,23 @@ public enum AgentInferenceRefinementTermination:
     case guide_failed
 }
 
-public struct AgentInferenceRefinementRecord:
+public struct InferenceRefinementRecord:
     Sendable,
     Codable,
     Hashable
 {
-    public var guide: AgentInferenceRefinementGuideIdentifier
-    public var steps: [AgentInferenceRefinementStep]
+    public var guide: InferenceRefinementGuideIdentifier
+    public var steps: [InferenceRefinementStep]
     public var selectedAttemptIndex: Int
     public var lastAttemptIndex: Int
-    public var termination: AgentInferenceRefinementTermination
+    public var termination: InferenceRefinementTermination
 
     public init(
-        guide: AgentInferenceRefinementGuideIdentifier,
-        steps: [AgentInferenceRefinementStep],
+        guide: InferenceRefinementGuideIdentifier,
+        steps: [InferenceRefinementStep],
         selectedAttemptIndex: Int,
         lastAttemptIndex: Int,
-        termination: AgentInferenceRefinementTermination
+        termination: InferenceRefinementTermination
     ) {
         self.guide = guide
         self.steps = steps

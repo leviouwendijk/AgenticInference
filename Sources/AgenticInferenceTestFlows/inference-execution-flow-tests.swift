@@ -3,7 +3,7 @@ import AgenticInference
 import Foundation
 import TestFlows
 
-private struct FixtureInference: AgentInference {
+private struct FixtureInference: Inference {
     struct Input:
         Sendable,
         Codable
@@ -13,24 +13,24 @@ private struct FixtureInference: AgentInference {
 
     typealias Output = String
 
-    static let definition = AgentInferenceDefinition(
+    static let definition = InferenceDefinition(
         identifier: "fixture.direct_execution",
         purpose: "Prove direct typed inference execution."
     )
 }
 
 private struct FixtureInferenceAdapter:
-    AgentInferenceAdapter,
+    InferenceAdapter,
     Sendable
 {
-    let identifier: AgentInferenceAdapterIdentifier = "fixture_adapter"
+    let identifier: InferenceAdapterIdentifier = "fixture_adapter"
 
-    func prepare<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        realization: AgentInferenceRealization
-    ) throws -> AgentInferenceAdaptation {
-        AgentInferenceAdaptation(
+    func prepare<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        realization: InferenceRealizationConfiguration
+    ) throws -> InferenceAdaptation {
+        InferenceAdaptation(
             request: AgentRequest(
                 messages: [
                     AgentMessage(
@@ -51,12 +51,12 @@ private struct FixtureInferenceAdapter:
         )
     }
 
-    func decode<Inference: AgentInference>(
-        _ inference: Inference.Type,
+    func decode<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
         response: AgentResponse
-    ) throws -> Inference.Output {
+    ) throws -> InferenceType.Output {
         try JSONDecoder().decode(
-            Inference.Output.self,
+            InferenceType.Output.self,
             from: Data(
                 response.message.content.text.utf8
             )
@@ -65,14 +65,14 @@ private struct FixtureInferenceAdapter:
 }
 
 private struct FixtureInferenceAdapterResolver:
-    AgentInferenceAdapterResolving,
+    InferenceAdapterResolving,
     Sendable
 {
     let adapter = FixtureInferenceAdapter()
 
     func require(
-        _ identifier: AgentInferenceAdapterIdentifier
-    ) throws -> any AgentInferenceAdapter {
+        _ identifier: InferenceAdapterIdentifier
+    ) throws -> any InferenceAdapter {
         guard identifier == adapter.identifier else {
             throw FixtureInferenceExecutionError.unknownAdapter(
                 identifier.rawValue
@@ -161,7 +161,7 @@ private enum FixtureInferenceExecutionError:
     case streamingUnsupported
 }
 
-enum AgentInferenceExecutionFlowTests {
+enum InferenceExecutionFlowTests {
     static func runNativeReasoning()
         async throws
         -> [TestFlowDiagnostic]
@@ -185,13 +185,12 @@ enum AgentInferenceExecutionFlowTests {
                 ]
             )
         )
-        let executor = AgentInferenceExecutor(
+        let executor = InferenceExecutor(
             modelInvoker: modelInvoker,
             adapters: FixtureInferenceAdapterResolver()
         )
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .native_reasoning,
-            modelSelection: .executor,
             instructions: "Use native reasoning and return the fixture output.",
             budget: .singleAttempt,
             adapter: "fixture_adapter"
@@ -306,13 +305,12 @@ enum AgentInferenceExecutionFlowTests {
                 ]
             )
         )
-        let executor = AgentInferenceExecutor(
+        let executor = InferenceExecutor(
             modelInvoker: modelInvoker,
             adapters: FixtureInferenceAdapterResolver()
         )
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .direct,
-            modelSelection: .executor,
             instructions: "Return the fixture output.",
             budget: .singleAttempt,
             adapter: "fixture_adapter"

@@ -1,3 +1,4 @@
+import Agentic
 import AgenticRecovery
 import Foundation
 
@@ -7,23 +8,23 @@ import Foundation
 /// present only when the execution terminated because a semantic attempt
 /// itself failed. Strategy-local failures may occur after successful attempts
 /// and therefore have no failed semantic attempt to manufacture.
-public struct AgentInferenceExecutionFailure:
+public struct InferenceExecutionFailure:
     Error,
     Sendable,
     LocalizedError
 {
-    public let failure: AgentInferenceFailureRecord
-    public let record: AgentInferenceExecutionRecord
-    public let terminalAttempt: AgentInferenceAttemptFailure?
+    public let failure: InferenceFailureRecord
+    public let record: InferenceExecutionRecord
+    public let terminalAttempt: InferenceAttemptFailure?
 
     public init(
-        attempt: AgentInferenceAttemptFailure,
-        inference: AgentInferenceIdentifier,
-        strategy: AgentInferenceStrategyIdentifier,
-        priorAttempts: [AgentInferenceAttemptRecord] = [],
-        budget: AgentInferenceBudget? = nil,
-        sampling: AgentInferenceSamplingRecord? = nil,
-        refinement: AgentInferenceRefinementRecord? = nil,
+        attempt: InferenceAttemptFailure,
+        inference: InferenceIdentifier,
+        strategy: InferenceStrategyIdentifier,
+        priorAttempts: [InferenceAttemptRecord] = [],
+        budget: InferenceBudget? = nil,
+        sampling: InferenceSamplingRecord? = nil,
+        refinement: InferenceRefinementRecord? = nil,
         metadata: [String: String] = [:]
     ) {
         var attempts = priorAttempts
@@ -44,16 +45,16 @@ public struct AgentInferenceExecutionFailure:
 
     public init(
         capturing error: any Error,
-        inference: AgentInferenceIdentifier,
-        strategy: AgentInferenceStrategyIdentifier,
-        attempts: [AgentInferenceAttemptRecord] = [],
-        budget: AgentInferenceBudget? = nil,
-        sampling: AgentInferenceSamplingRecord? = nil,
-        refinement: AgentInferenceRefinementRecord? = nil,
+        inference: InferenceIdentifier,
+        strategy: InferenceStrategyIdentifier,
+        attempts: [InferenceAttemptRecord] = [],
+        budget: InferenceBudget? = nil,
+        sampling: InferenceSamplingRecord? = nil,
+        refinement: InferenceRefinementRecord? = nil,
         metadata: [String: String] = [:]
     ) {
         self.init(
-            failure: AgentInferenceFailureRecord(
+            failure: InferenceFailureRecord(
                 capturing: error
             ),
             terminalAttempt: nil,
@@ -68,19 +69,19 @@ public struct AgentInferenceExecutionFailure:
     }
 
     private init(
-        failure: AgentInferenceFailureRecord,
-        terminalAttempt: AgentInferenceAttemptFailure?,
-        inference: AgentInferenceIdentifier,
-        strategy: AgentInferenceStrategyIdentifier,
-        attempts: [AgentInferenceAttemptRecord],
-        budget: AgentInferenceBudget?,
-        sampling: AgentInferenceSamplingRecord?,
-        refinement: AgentInferenceRefinementRecord?,
+        failure: InferenceFailureRecord,
+        terminalAttempt: InferenceAttemptFailure?,
+        inference: InferenceIdentifier,
+        strategy: InferenceStrategyIdentifier,
+        attempts: [InferenceAttemptRecord],
+        budget: InferenceBudget?,
+        sampling: InferenceSamplingRecord?,
+        refinement: InferenceRefinementRecord?,
         metadata: [String: String]
     ) {
         self.failure = failure
         self.terminalAttempt = terminalAttempt
-        self.record = AgentInferenceExecutionRecord(
+        self.record = InferenceExecutionRecord(
             inference: inference,
             strategy: strategy,
             attempts: attempts,

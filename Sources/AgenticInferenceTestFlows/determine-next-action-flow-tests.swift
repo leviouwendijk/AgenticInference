@@ -1,8 +1,9 @@
+import Agentic
 import AgenticInference
 import Foundation
 import TestFlows
 
-extension AgentInferenceFlowTesting {
+extension InferenceFlowTesting {
     static func runDetermineNextAction()
         throws
         -> [TestFlowDiagnostic]
@@ -37,16 +38,13 @@ extension AgentInferenceFlowTesting {
         )
         try Expect.equal(
             DetermineNextAction.definition.identifier,
-            AgentInferenceIdentifier("determine_next_action"),
+            InferenceIdentifier("determine_next_action"),
             "determine-next-action exposes stable semantic inference identifier"
         )
         try Expect.equal(
-            DetermineNextAction.definition.tags,
-            [
-                "decision",
-                "action-selection",
-            ],
-            "determine-next-action exposes semantic discovery tags"
+            DetermineNextAction.definition.purpose,
+            "Select the most appropriate next action from the supplied candidates for the current goal and state.",
+            "determine-next-action exposes semantic inference purpose"
         )
 
         let output = DetermineNextAction.Output(

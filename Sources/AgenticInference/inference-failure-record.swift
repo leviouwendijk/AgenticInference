@@ -5,7 +5,7 @@ import Foundation
 ///
 /// Recovery is operation evidence, not the semantic decision a caller may make
 /// after the failure propagates.
-public struct AgentInferenceFailureRecord:
+public struct InferenceFailureRecord:
     Sendable,
     Codable,
     Hashable

@@ -17,54 +17,56 @@ public enum RefiningInferenceStrategyError:
 }
 
 public struct RefiningInferenceStrategy:
-    AgentInferenceStrategy,
+    InferenceStrategy,
     Sendable
 {
-    public let identifier: AgentInferenceStrategyIdentifier = .refining
+    public let identifier: InferenceStrategyIdentifier = .refining
 
-    private let guide: any AgentInferenceRefinementGuiding
+    private let guide: any InferenceRefinementGuiding
 
     public init(
-        guide: any AgentInferenceRefinementGuiding
+        guide: any InferenceRefinementGuiding
     ) {
         self.guide = guide
     }
 
-    public func execute<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        realization: AgentInferenceRealization,
-        attempts: any AgentInferenceAttemptExecuting
-    ) async throws -> AgentInferenceExecutionResult<Inference.Output> {
-        var attemptRecords: [AgentInferenceAttemptRecord] = []
-        var refinementSteps: [AgentInferenceRefinementStep] = []
+    public func execute<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        realization: InferenceRealizationConfiguration,
+        context: InferenceExecutionContext,
+        attempts: any InferenceAttemptExecuting
+    ) async throws -> InferenceExecutionResult<InferenceType.Output> {
+        var attemptRecords: [InferenceAttemptRecord] = []
+        var refinementSteps: [InferenceRefinementStep] = []
         var currentRealization = realization
 
-        var selectedOutput: Inference.Output?
+        var selectedOutput: InferenceType.Output?
         var selectedScore: Double?
         var selectedAttemptIndex: Int?
         var lastAttemptIndex: Int?
-        var termination: AgentInferenceRefinementTermination?
+        var termination: InferenceRefinementTermination?
 
         refinementLoop: while
             attemptRecords.count < realization.budget.maximumAttempts
         {
             let attemptIndex = attemptRecords.count
-            let attempt: AgentInferenceAttemptResult<Inference.Output>
+            let attempt: InferenceAttemptResult<InferenceType.Output>
 
             do {
                 attempt = try await attempts.execute(
                     inference,
                     input: input,
                     realization: currentRealization,
+                    context: context,
                     priorAttempts: attemptRecords,
                     additionalRequirements: AgentModelRequirements(
                         capabilities: []
                     )
                 )
-            } catch let failure as AgentInferenceAttemptFailure {
+            } catch let failure as InferenceAttemptFailure {
                 let refinement = selectedAttemptIndex.map {
-                    AgentInferenceRefinementRecord(
+                    InferenceRefinementRecord(
                         guide: guide.identifier,
                         steps: refinementSteps,
                         selectedAttemptIndex: $0,
@@ -73,7 +75,7 @@ public struct RefiningInferenceStrategy:
                     )
                 }
 
-                throw AgentInferenceExecutionFailure(
+                throw InferenceExecutionFailure(
                     attempt: failure,
                     inference: inference.definition.identifier,
                     strategy: identifier,
@@ -82,7 +84,7 @@ public struct RefiningInferenceStrategy:
                     refinement: refinement,
                     metadata: realization.metadata
                 )
-            } catch let error as AgentInferenceBudgetError {
+            } catch let error as InferenceBudgetError {
                 switch error {
                 case .maximumTotalTokensReached(_, _):
                     guard selectedOutput != nil else {
@@ -110,7 +112,7 @@ public struct RefiningInferenceStrategy:
             )
             lastAttemptIndex = attemptIndex
 
-            let decision: AgentInferenceRefinementDecision
+            let decision: InferenceRefinementDecision
 
             do {
                 decision = try await guide.guide(
@@ -122,7 +124,7 @@ public struct RefiningInferenceStrategy:
                 )
             } catch {
                 let refinement = selectedAttemptIndex.map {
-                    AgentInferenceRefinementRecord(
+                    InferenceRefinementRecord(
                         guide: guide.identifier,
                         steps: refinementSteps,
                         selectedAttemptIndex: $0,
@@ -131,7 +133,7 @@ public struct RefiningInferenceStrategy:
                     )
                 }
 
-                throw AgentInferenceExecutionFailure(
+                throw InferenceExecutionFailure(
                     capturing: error,
                     inference: inference.definition.identifier,
                     strategy: identifier,
@@ -152,7 +154,7 @@ public struct RefiningInferenceStrategy:
             }
 
             refinementSteps.append(
-                AgentInferenceRefinementStep(
+                InferenceRefinementStep(
                     attemptIndex: attemptIndex,
                     guide: guide.identifier,
                     evaluation: decision.evaluation,
@@ -222,14 +224,14 @@ public struct RefiningInferenceStrategy:
             throw RefiningInferenceStrategyError.noCandidatesProduced
         }
 
-        return AgentInferenceExecutionResult(
+        return InferenceExecutionResult(
             output: selectedOutput,
-            record: AgentInferenceExecutionRecord(
+            record: InferenceExecutionRecord(
                 inference: inference.definition.identifier,
                 strategy: identifier,
                 attempts: attemptRecords,
                 budget: realization.budget,
-                refinement: AgentInferenceRefinementRecord(
+                refinement: InferenceRefinementRecord(
                     guide: guide.identifier,
                     steps: refinementSteps,
                     selectedAttemptIndex: selectedAttemptIndex,

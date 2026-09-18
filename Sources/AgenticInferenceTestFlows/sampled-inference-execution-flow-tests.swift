@@ -3,7 +3,7 @@ import AgenticInference
 import Foundation
 import TestFlows
 
-private struct SampledFixtureInference: AgentInference {
+private struct SampledFixtureInference: Inference {
     struct Input:
         Sendable,
         Codable
@@ -13,25 +13,25 @@ private struct SampledFixtureInference: AgentInference {
 
     typealias Output = String
 
-    static let definition = AgentInferenceDefinition(
+    static let definition = InferenceDefinition(
         identifier: "fixture.sampled_execution",
         purpose: "Prove sampled inference candidate generation and evaluation."
     )
 }
 
 private struct SampledFixtureAdapter:
-    AgentInferenceAdapter,
+    InferenceAdapter,
     Sendable
 {
-    let identifier: AgentInferenceAdapterIdentifier =
+    let identifier: InferenceAdapterIdentifier =
         "sampled_fixture_adapter"
 
-    func prepare<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        realization: AgentInferenceRealization
-    ) throws -> AgentInferenceAdaptation {
-        AgentInferenceAdaptation(
+    func prepare<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        realization: InferenceRealizationConfiguration
+    ) throws -> InferenceAdaptation {
+        InferenceAdaptation(
             request: AgentRequest(
                 messages: [
                     AgentMessage(
@@ -49,12 +49,12 @@ private struct SampledFixtureAdapter:
         )
     }
 
-    func decode<Inference: AgentInference>(
-        _ inference: Inference.Type,
+    func decode<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
         response: AgentResponse
-    ) throws -> Inference.Output {
+    ) throws -> InferenceType.Output {
         try JSONDecoder().decode(
-            Inference.Output.self,
+            InferenceType.Output.self,
             from: Data(
                 response.message.content.text.utf8
             )
@@ -63,14 +63,14 @@ private struct SampledFixtureAdapter:
 }
 
 private struct SampledFixtureAdapterResolver:
-    AgentInferenceAdapterResolving,
+    InferenceAdapterResolving,
     Sendable
 {
     let adapter = SampledFixtureAdapter()
 
     func require(
-        _ identifier: AgentInferenceAdapterIdentifier
-    ) throws -> any AgentInferenceAdapter {
+        _ identifier: InferenceAdapterIdentifier
+    ) throws -> any InferenceAdapter {
         guard identifier == adapter.identifier else {
             throw SampledFixtureError.unknownAdapter(
                 identifier.rawValue
@@ -176,10 +176,10 @@ private struct SampledFixtureModelInvoker:
 }
 
 private struct SampledFixtureEvaluator:
-    AgentInferenceCandidateEvaluating,
+    InferenceCandidateEvaluating,
     Sendable
 {
-    let identifier: AgentInferenceEvaluatorIdentifier =
+    let identifier: InferenceEvaluatorIdentifier =
         "fixture_quality"
     let failingAttemptIndex: Int?
 
@@ -189,12 +189,12 @@ private struct SampledFixtureEvaluator:
         self.failingAttemptIndex = failingAttemptIndex
     }
 
-    func evaluate<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        output: Inference.Output,
-        attempt: AgentInferenceAttemptRecord
-    ) async throws -> AgentInferenceCandidateScore {
+    func evaluate<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        output: InferenceType.Output,
+        attempt: InferenceAttemptRecord
+    ) async throws -> InferenceCandidateScore {
         if failingAttemptIndex == attempt.index {
             throw SampledFixtureError.evaluationFailed(
                 attempt.index
@@ -219,7 +219,7 @@ private struct SampledFixtureEvaluator:
             score = 0.1
         }
 
-        return try AgentInferenceCandidateScore(
+        return try InferenceCandidateScore(
             score: score,
             metadata: [
                 "value": value,
@@ -238,7 +238,7 @@ private enum SampledFixtureError:
     case streamingUnsupported
 }
 
-extension AgentInferenceExecutionFlowTests {
+extension InferenceExecutionFlowTests {
     static func runSampled()
         async throws
         -> [TestFlowDiagnostic]
@@ -251,18 +251,17 @@ extension AgentInferenceExecutionFlowTests {
             ]
         )
         let evaluator = SampledFixtureEvaluator()
-        let executor = AgentInferenceExecutor(
+        let executor = InferenceExecutor(
             modelInvoker: SampledFixtureModelInvoker(
                 state: state
             ),
             adapters: SampledFixtureAdapterResolver(),
             sampleEvaluator: evaluator
         )
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .sampled,
-            modelSelection: .executor,
             instructions: "Generate multiple candidate outputs.",
-            budget: try AgentInferenceBudget(
+            budget: try InferenceBudget(
                 maximumAttempts: 3
             ),
             adapter: "sampled_fixture_adapter"
@@ -325,7 +324,7 @@ extension AgentInferenceExecutionFlowTests {
                 "MID",
             ]
         )
-        let cappedExecutor = AgentInferenceExecutor(
+        let cappedExecutor = InferenceExecutor(
             modelInvoker: SampledFixtureModelInvoker(
                 state: cappedState
             ),
@@ -337,11 +336,10 @@ extension AgentInferenceExecutionFlowTests {
             input: SampledFixtureInference.Input(
                 value: "token-capped"
             ),
-            realization: AgentInferenceRealization(
+            realization: InferenceRealizationConfiguration(
                 strategy: .sampled,
-                modelSelection: .executor,
                 instructions: "Stop sampling when the token budget is exhausted.",
-                budget: try AgentInferenceBudget(
+                budget: try InferenceBudget(
                     maximumAttempts: 3,
                     maximumTotalTokens: 4
                 ),
@@ -381,14 +379,14 @@ extension AgentInferenceExecutionFlowTests {
                 "BEST",
             ]
         )
-        let failureExecutor = AgentInferenceExecutor(
+        let failureExecutor = InferenceExecutor(
             modelInvoker: SampledFixtureModelInvoker(
                 state: failureState
             ),
             adapters: SampledFixtureAdapterResolver(),
             sampleEvaluator: evaluator
         )
-        let executionFailure: AgentInferenceExecutionFailure?
+        let executionFailure: InferenceExecutionFailure?
 
         do {
             _ = try await failureExecutor.execute(
@@ -396,18 +394,17 @@ extension AgentInferenceExecutionFlowTests {
                 input: .init(
                     value: "terminal-failure"
                 ),
-                realization: AgentInferenceRealization(
+                realization: InferenceRealizationConfiguration(
                     strategy: .sampled,
-                    modelSelection: .executor,
                     instructions: "Preserve completed samples when a later sample fails.",
-                    budget: try AgentInferenceBudget(
+                    budget: try InferenceBudget(
                         maximumAttempts: 2
                     ),
                     adapter: "sampled_fixture_adapter"
                 )
             )
             executionFailure = nil
-        } catch let error as AgentInferenceExecutionFailure {
+        } catch let error as InferenceExecutionFailure {
             executionFailure = error
         } catch {
             throw error
@@ -488,7 +485,7 @@ extension AgentInferenceExecutionFlowTests {
                 "BEST",
             ]
         )
-        let evaluatorFailureExecutor = AgentInferenceExecutor(
+        let evaluatorFailureExecutor = InferenceExecutor(
             modelInvoker: SampledFixtureModelInvoker(
                 state: evaluatorFailureState
             ),
@@ -497,7 +494,7 @@ extension AgentInferenceExecutionFlowTests {
                 failingAttemptIndex: 1
             )
         )
-        let evaluatorExecutionFailure: AgentInferenceExecutionFailure?
+        let evaluatorExecutionFailure: InferenceExecutionFailure?
 
         do {
             _ = try await evaluatorFailureExecutor.execute(
@@ -505,18 +502,17 @@ extension AgentInferenceExecutionFlowTests {
                 input: .init(
                     value: "evaluator-failure"
                 ),
-                realization: AgentInferenceRealization(
+                realization: InferenceRealizationConfiguration(
                     strategy: .sampled,
-                    modelSelection: .executor,
                     instructions: "Preserve paid attempts when evaluation fails.",
-                    budget: try AgentInferenceBudget(
+                    budget: try InferenceBudget(
                         maximumAttempts: 2
                     ),
                     adapter: "sampled_fixture_adapter"
                 )
             )
             evaluatorExecutionFailure = nil
-        } catch let error as AgentInferenceExecutionFailure {
+        } catch let error as InferenceExecutionFailure {
             evaluatorExecutionFailure = error
         } catch {
             throw error

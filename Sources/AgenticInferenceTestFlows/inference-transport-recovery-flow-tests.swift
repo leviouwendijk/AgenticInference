@@ -4,7 +4,7 @@ import AgenticRecovery
 import Foundation
 import TestFlows
 
-private struct TransportRecoveryFixtureInference: AgentInference {
+private struct TransportRecoveryFixtureInference: Inference {
     struct Input:
         Sendable,
         Codable
@@ -14,7 +14,7 @@ private struct TransportRecoveryFixtureInference: AgentInference {
 
     typealias Output = String
 
-    static let definition = AgentInferenceDefinition(
+    static let definition = InferenceDefinition(
         identifier: "fixture.transport_recovery",
         purpose: "Prove bounded transport recovery within one semantic inference attempt."
     )
@@ -40,18 +40,18 @@ private enum TransportRecoveryFixtureError:
 }
 
 private struct TransportRecoveryFixtureAdapter:
-    AgentInferenceAdapter,
+    InferenceAdapter,
     Sendable
 {
-    let identifier: AgentInferenceAdapterIdentifier =
+    let identifier: InferenceAdapterIdentifier =
         "transport_recovery_fixture_adapter"
 
-    func prepare<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        realization: AgentInferenceRealization
-    ) throws -> AgentInferenceAdaptation {
-        AgentInferenceAdaptation(
+    func prepare<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        realization: InferenceRealizationConfiguration
+    ) throws -> InferenceAdaptation {
+        InferenceAdaptation(
             request: AgentRequest(
                 messages: [
                     AgentMessage(
@@ -64,12 +64,12 @@ private struct TransportRecoveryFixtureAdapter:
         )
     }
 
-    func decode<Inference: AgentInference>(
-        _ inference: Inference.Type,
+    func decode<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
         response: AgentResponse
-    ) throws -> Inference.Output {
+    ) throws -> InferenceType.Output {
         try JSONDecoder().decode(
-            Inference.Output.self,
+            InferenceType.Output.self,
             from: Data(
                 response.message.content.text.utf8
             )
@@ -78,14 +78,14 @@ private struct TransportRecoveryFixtureAdapter:
 }
 
 private struct TransportRecoveryFixtureAdapterResolver:
-    AgentInferenceAdapterResolving,
+    InferenceAdapterResolving,
     Sendable
 {
     let adapter = TransportRecoveryFixtureAdapter()
 
     func require(
-        _ identifier: AgentInferenceAdapterIdentifier
-    ) throws -> any AgentInferenceAdapter {
+        _ identifier: InferenceAdapterIdentifier
+    ) throws -> any InferenceAdapter {
         guard identifier == adapter.identifier else {
             throw TransportRecoveryFixtureError.unknownAdapter(
                 identifier.rawValue
@@ -206,13 +206,13 @@ private struct TransportRecoveryFixtureModelInvoker:
 }
 
 private struct TransportRecoveryFixtureClassifier:
-    AgentInferenceRecoveryClassifying,
+    InferenceRecoveryClassifying,
     Sendable
 {
     func incident(
         for error: any Error,
         stage: Recovery.Stage,
-        inference: AgentInferenceIdentifier,
+        inference: InferenceIdentifier,
         attemptIndex: Int,
         invocationIndex: Int
     ) -> Recovery.Incident? {
@@ -240,7 +240,7 @@ private struct TransportRecoveryFixtureClassifier:
     }
 }
 
-let agentInferenceTransportRecoveryFlows: [TestFlow] = [
+let inferenceTransportRecoveryFlows: [TestFlow] = [
     TestFlow(
         "inference-transport-recovery",
         tags: [
@@ -251,7 +251,7 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
         ]
     ) {
         let state = TransportRecoveryFixtureState()
-        let executor = AgentInferenceExecutor(
+        let executor = InferenceExecutor(
             modelInvoker: TransportRecoveryFixtureModelInvoker(
                 state: state
             ),
@@ -284,9 +284,8 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
                 ),
             ]
         )
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .direct,
-            modelSelection: .executor,
             instructions: "Return the fixture output.",
             budget: .singleAttempt,
             recovery: policy
@@ -323,7 +322,7 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             2,
             "failed transport plus successful retry are two model invocations"
         )
-        let firstFailure: AgentInferenceInvocationOutcome.Failure?
+        let firstFailure: InferenceInvocationOutcome.Failure?
         switch attempt.invocations[0].outcome {
         case .failed(let failure):
             firstFailure = failure
@@ -423,7 +422,7 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
         ]
     ) {
         let state = TransportRecoveryFixtureState()
-        let executor = AgentInferenceExecutor(
+        let executor = InferenceExecutor(
             modelInvoker: TransportRecoveryFixtureModelInvoker(
                 state: state,
                 failureCount: 2
@@ -457,15 +456,14 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
                 ),
             ]
         )
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .direct,
-            modelSelection: .executor,
             instructions: "Return the fixture output.",
             budget: .singleAttempt,
             recovery: policy
         )
 
-        let terminalFailure: AgentInferenceExecutionFailure?
+        let terminalFailure: InferenceExecutionFailure?
 
         do {
             _ = try await executor.execute(
@@ -476,7 +474,7 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
                 realization: realization
             )
             terminalFailure = nil
-        } catch let error as AgentInferenceExecutionFailure {
+        } catch let error as InferenceExecutionFailure {
             terminalFailure = error
         } catch {
             throw error
@@ -596,7 +594,7 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
         ]
     ) {
         let state = TransportRecoveryFixtureState()
-        let executor = AgentInferenceExecutor(
+        let executor = InferenceExecutor(
             modelInvoker: TransportRecoveryFixtureModelInvoker(
                 state: state
             ),
@@ -606,14 +604,13 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
             recoveryClassifier:
                 TransportRecoveryFixtureClassifier()
         )
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .direct,
-            modelSelection: .executor,
             instructions: "Return the fixture output.",
             budget: .singleAttempt
         )
 
-        let terminalFailure: AgentInferenceExecutionFailure?
+        let terminalFailure: InferenceExecutionFailure?
 
         do {
             _ = try await executor.execute(
@@ -624,7 +621,7 @@ let agentInferenceTransportRecoveryFlows: [TestFlow] = [
                 realization: realization
             )
             terminalFailure = nil
-        } catch let error as AgentInferenceExecutionFailure {
+        } catch let error as InferenceExecutionFailure {
             terminalFailure = error
         } catch {
             throw error

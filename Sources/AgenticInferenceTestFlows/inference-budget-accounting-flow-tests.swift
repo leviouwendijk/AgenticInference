@@ -5,14 +5,14 @@ import TestFlows
 
 private struct LegacyBudgetAttemptRecord: Encodable {
     let index: Int
-    let adapter: AgentInferenceAdapterIdentifier
+    let adapter: InferenceAdapterIdentifier
     let selection: AgentModelSelection
     let route: AgentModelRouteRecord
     let usage: AgentUsage?
     let metadata: [String: String]
 }
 
-private struct BudgetFixtureInference: AgentInference {
+private struct BudgetFixtureInference: Inference {
     struct Input:
         Sendable,
         Codable
@@ -22,25 +22,25 @@ private struct BudgetFixtureInference: AgentInference {
 
     typealias Output = String
 
-    static let definition = AgentInferenceDefinition(
+    static let definition = InferenceDefinition(
         identifier: "fixture.budget_execution",
         purpose: "Prove deterministic inference budget accounting."
     )
 }
 
 private struct BudgetFixtureAdapter:
-    AgentInferenceAdapter,
+    InferenceAdapter,
     Sendable
 {
-    let identifier: AgentInferenceAdapterIdentifier =
+    let identifier: InferenceAdapterIdentifier =
         "budget_fixture_adapter"
 
-    func prepare<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        realization: AgentInferenceRealization
-    ) throws -> AgentInferenceAdaptation {
-        AgentInferenceAdaptation(
+    func prepare<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        realization: InferenceRealizationConfiguration
+    ) throws -> InferenceAdaptation {
+        InferenceAdaptation(
             request: AgentRequest(
                 messages: [
                     AgentMessage(
@@ -58,12 +58,12 @@ private struct BudgetFixtureAdapter:
         )
     }
 
-    func decode<Inference: AgentInference>(
-        _ inference: Inference.Type,
+    func decode<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
         response: AgentResponse
-    ) throws -> Inference.Output {
+    ) throws -> InferenceType.Output {
         try JSONDecoder().decode(
-            Inference.Output.self,
+            InferenceType.Output.self,
             from: Data(
                 response.message.content.text.utf8
             )
@@ -72,14 +72,14 @@ private struct BudgetFixtureAdapter:
 }
 
 private struct BudgetFixtureAdapterResolver:
-    AgentInferenceAdapterResolving,
+    InferenceAdapterResolving,
     Sendable
 {
     let adapter = BudgetFixtureAdapter()
 
     func require(
-        _ identifier: AgentInferenceAdapterIdentifier
-    ) throws -> any AgentInferenceAdapter {
+        _ identifier: InferenceAdapterIdentifier
+    ) throws -> any InferenceAdapter {
         guard identifier == adapter.identifier else {
             throw BudgetFixtureError.unknownAdapter(
                 identifier.rawValue
@@ -167,7 +167,7 @@ private enum BudgetFixtureError:
     case streamingUnsupported
 }
 
-extension AgentInferenceExecutionFlowTests {
+extension InferenceExecutionFlowTests {
     static func runBudgetAccounting()
         async throws
         -> [TestFlowDiagnostic]
@@ -192,18 +192,17 @@ extension AgentInferenceExecutionFlowTests {
             recorder: executionRecorder,
             response: response
         )
-        let budget = try AgentInferenceBudget(
+        let budget = try InferenceBudget(
             maximumAttempts: 1,
             maximumTotalTokens: 10
         )
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .direct,
-            modelSelection: .executor,
             instructions: "Return the budget fixture output.",
             budget: budget,
             adapter: "budget_fixture_adapter"
         )
-        let executor = AgentInferenceExecutor(
+        let executor = InferenceExecutor(
             modelInvoker: modelInvoker,
             adapters: BudgetFixtureAdapterResolver()
         )
@@ -252,7 +251,7 @@ extension AgentInferenceExecutionFlowTests {
             result.record
         )
         let decodedRecord = try JSONDecoder().decode(
-            AgentInferenceExecutionRecord.self,
+            InferenceExecutionRecord.self,
             from: encodedRecord
         )
 
@@ -263,7 +262,7 @@ extension AgentInferenceExecutionFlowTests {
         )
 
         let attemptRecorder = BudgetInvocationRecorder()
-        let attemptExecutor = AgentInferenceAttemptExecutor(
+        let attemptExecutor = InferenceAttemptExecutor(
             modelInvoker: BudgetFixtureModelInvoker(
                 recorder: attemptRecorder,
                 response: response
@@ -274,10 +273,10 @@ extension AgentInferenceExecutionFlowTests {
         var invalidAttemptBudgetRejected = false
 
         do {
-            _ = try AgentInferenceBudget(
+            _ = try InferenceBudget(
                 maximumAttempts: 0
             )
-        } catch AgentInferenceBudgetParsingError
+        } catch InferenceBudgetParsingError
             .nonPositiveMaximumAttempts(_) {
             invalidAttemptBudgetRejected = true
         }
@@ -299,10 +298,10 @@ extension AgentInferenceExecutionFlowTests {
 
         do {
             _ = try JSONDecoder().decode(
-                AgentInferenceBudget.self,
+                InferenceBudget.self,
                 from: invalidBudgetData
             )
-        } catch AgentInferenceBudgetParsingError
+        } catch InferenceBudgetParsingError
             .nonPositiveMaximumAttempts(_) {
             invalidBudgetDecodeRejected = true
         }
@@ -313,13 +312,13 @@ extension AgentInferenceExecutionFlowTests {
             "budget decoding cannot bypass parsed invariants"
         )
 
-        let validBudget = try AgentInferenceBudget(
+        let validBudget = try InferenceBudget(
             maximumAttempts: 2,
             maximumTotalTokens: 5,
             maximumEstimatedUsd: 0
         )
         let validBudgetRoundTrip = try JSONDecoder().decode(
-            AgentInferenceBudget.self,
+            InferenceBudget.self,
             from: JSONEncoder().encode(
                 validBudget
             )
@@ -331,9 +330,8 @@ extension AgentInferenceExecutionFlowTests {
             "valid parsed budgets survive durable codec round trip"
         )
 
-        let tokenRealization = AgentInferenceRealization(
+        let tokenRealization = InferenceRealizationConfiguration(
             strategy: .direct,
-            modelSelection: .executor,
             instructions: "Exercise token budget enforcement.",
             budget: validBudget,
             adapter: "budget_fixture_adapter"
@@ -344,6 +342,7 @@ extension AgentInferenceExecutionFlowTests {
                 value: "first"
             ),
             realization: tokenRealization,
+            context: .default,
             priorAttempts: []
         )
 
@@ -373,7 +372,7 @@ extension AgentInferenceExecutionFlowTests {
             )
         )
         let migratedLegacyAttempt = try JSONDecoder().decode(
-            AgentInferenceAttemptRecord.self,
+            InferenceAttemptRecord.self,
             from: legacyAttemptData
         )
 
@@ -388,7 +387,7 @@ extension AgentInferenceExecutionFlowTests {
             "legacy successful attempt records migrate into the explicit success outcome"
         )
 
-        let failedInvocation = AgentInferenceInvocationRecord(
+        let failedInvocation = InferenceInvocationRecord(
             index: 0,
             selection: firstAttempt.record.selection,
             outcome: .failed(
@@ -400,11 +399,11 @@ extension AgentInferenceExecutionFlowTests {
                 "fixture": "failed_attempt",
             ]
         )
-        let failedAttempt = AgentInferenceAttemptRecord(
+        let failedAttempt = InferenceAttemptRecord(
             index: 1,
             adapter: firstAttempt.record.adapter,
             selection: firstAttempt.record.selection,
-            failure: AgentInferenceFailureRecord(
+            failure: InferenceFailureRecord(
                 type: "FixtureTerminalFailure",
                 message: "fixture terminal failure"
             ),
@@ -416,7 +415,7 @@ extension AgentInferenceExecutionFlowTests {
             ]
         )
         let failedAttemptRoundTrip = try JSONDecoder().decode(
-            AgentInferenceAttemptRecord.self,
+            InferenceAttemptRecord.self,
             from: JSONEncoder().encode(
                 failedAttempt
             )
@@ -454,7 +453,7 @@ extension AgentInferenceExecutionFlowTests {
 
         var recoveredAttempt = firstAttempt.record
         recoveredAttempt.invocations.append(
-            AgentInferenceInvocationRecord(
+            InferenceInvocationRecord(
                 index: 1,
                 selection: firstAttempt.record.selection,
                 route: firstRoute,
@@ -463,7 +462,7 @@ extension AgentInferenceExecutionFlowTests {
             )
         )
 
-        let recoveredUsage = AgentInferenceBudgetUsage(
+        let recoveredUsage = InferenceBudgetUsage(
             attempts: [
                 recoveredAttempt,
             ]
@@ -485,7 +484,7 @@ extension AgentInferenceExecutionFlowTests {
             "token accounting includes every model invocation inside the semantic attempt"
         )
 
-        let semanticBudget = try AgentInferenceBudget(
+        let semanticBudget = try InferenceBudget(
             maximumAttempts: 2,
             maximumTotalTokens: 20
         )
@@ -511,11 +510,12 @@ extension AgentInferenceExecutionFlowTests {
                     value: "second"
                 ),
                 realization: tokenRealization,
+                context: .default,
                 priorAttempts: [
                     firstAttempt.record,
                 ]
             )
-        } catch AgentInferenceBudgetError.maximumTotalTokensReached(
+        } catch InferenceBudgetError.maximumTotalTokensReached(
             let maximumTotalTokens,
             let consumedTotalTokens
         ) {
@@ -543,7 +543,7 @@ extension AgentInferenceExecutionFlowTests {
         )
 
         let unavailableRecorder = BudgetInvocationRecorder()
-        let unavailableExecutor = AgentInferenceAttemptExecutor(
+        let unavailableExecutor = InferenceAttemptExecutor(
             modelInvoker: BudgetFixtureModelInvoker(
                 recorder: unavailableRecorder,
                 response: AgentResponse(
@@ -556,11 +556,10 @@ extension AgentInferenceExecutionFlowTests {
             ),
             adapters: BudgetFixtureAdapterResolver()
         )
-        let unavailableRealization = AgentInferenceRealization(
+        let unavailableRealization = InferenceRealizationConfiguration(
             strategy: .direct,
-            modelSelection: .executor,
             instructions: "Exercise missing usage handling.",
-            budget: try AgentInferenceBudget(
+            budget: try InferenceBudget(
                 maximumAttempts: 2,
                 maximumTotalTokens: 10
             ),
@@ -572,6 +571,7 @@ extension AgentInferenceExecutionFlowTests {
                 value: "first"
             ),
             realization: unavailableRealization,
+            context: .default,
             priorAttempts: []
         )
 
@@ -584,11 +584,12 @@ extension AgentInferenceExecutionFlowTests {
                     value: "second"
                 ),
                 realization: unavailableRealization,
+                context: .default,
                 priorAttempts: [
                     unavailableFirst.record,
                 ]
             )
-        } catch AgentInferenceBudgetError.totalTokenUsageUnavailable {
+        } catch InferenceBudgetError.totalTokenUsageUnavailable {
             missingUsageBlocked = true
         }
 

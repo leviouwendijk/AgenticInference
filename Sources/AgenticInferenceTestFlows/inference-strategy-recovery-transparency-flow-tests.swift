@@ -4,7 +4,7 @@ import AgenticRecovery
 import Foundation
 import TestFlows
 
-private struct StrategyRecoveryFixtureInference: AgentInference {
+private struct StrategyRecoveryFixtureInference: Inference {
     struct Input:
         Sendable,
         Codable
@@ -14,7 +14,7 @@ private struct StrategyRecoveryFixtureInference: AgentInference {
 
     typealias Output = String
 
-    static let definition = AgentInferenceDefinition(
+    static let definition = InferenceDefinition(
         identifier: "fixture.strategy_recovery",
         purpose: "Prove that mechanical recovery remains internal to semantic inference attempts."
     )
@@ -65,19 +65,19 @@ private enum StrategyRecoveryFixtureError:
 }
 
 private struct StrategyRecoveryFixtureAdapter:
-    AgentInferenceAdapter,
-    AgentInferenceOutputRepairing,
+    InferenceAdapter,
+    InferenceOutputRepairing,
     Sendable
 {
-    let identifier: AgentInferenceAdapterIdentifier =
+    let identifier: InferenceAdapterIdentifier =
         "strategy_recovery_fixture_adapter"
 
-    func prepare<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        realization: AgentInferenceRealization
-    ) throws -> AgentInferenceAdaptation {
-        AgentInferenceAdaptation(
+    func prepare<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        realization: InferenceRealizationConfiguration
+    ) throws -> InferenceAdaptation {
+        InferenceAdaptation(
             request: AgentRequest(
                 messages: [
                     AgentMessage(
@@ -95,13 +95,13 @@ private struct StrategyRecoveryFixtureAdapter:
         )
     }
 
-    func decode<Inference: AgentInference>(
-        _ inference: Inference.Type,
+    func decode<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
         response: AgentResponse
-    ) throws -> Inference.Output {
+    ) throws -> InferenceType.Output {
         do {
             return try JSONDecoder().decode(
-                Inference.Output.self,
+                InferenceType.Output.self,
                 from: Data(
                     response.message.content.text.utf8
                 )
@@ -111,14 +111,14 @@ private struct StrategyRecoveryFixtureAdapter:
         }
     }
 
-    func repair<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
+    func repair<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
         response: AgentResponse,
         error: any Error,
-        realization: AgentInferenceRealization
-    ) throws -> AgentInferenceAdaptation {
-        AgentInferenceAdaptation(
+        realization: InferenceRealizationConfiguration
+    ) throws -> InferenceAdaptation {
+        InferenceAdaptation(
             request: AgentRequest(
                 messages: [
                     AgentMessage(
@@ -142,14 +142,14 @@ private struct StrategyRecoveryFixtureAdapter:
 }
 
 private struct StrategyRecoveryFixtureAdapterResolver:
-    AgentInferenceAdapterResolving,
+    InferenceAdapterResolving,
     Sendable
 {
     let adapter = StrategyRecoveryFixtureAdapter()
 
     func require(
-        _ identifier: AgentInferenceAdapterIdentifier
-    ) throws -> any AgentInferenceAdapter {
+        _ identifier: InferenceAdapterIdentifier
+    ) throws -> any InferenceAdapter {
         guard identifier == adapter.identifier else {
             throw StrategyRecoveryFixtureError.unknownAdapter(
                 identifier.rawValue
@@ -298,13 +298,13 @@ private struct StrategyRecoveryFixtureModelInvoker:
 }
 
 private struct StrategyRecoveryFixtureClassifier:
-    AgentInferenceRecoveryClassifying,
+    InferenceRecoveryClassifying,
     Sendable
 {
     func incident(
         for error: any Error,
         stage: Recovery.Stage,
-        inference: AgentInferenceIdentifier,
+        inference: InferenceIdentifier,
         attemptIndex: Int,
         invocationIndex: Int
     ) -> Recovery.Incident? {
@@ -346,18 +346,18 @@ private struct StrategyRecoveryFixtureClassifier:
 }
 
 private struct StrategyRecoveryFixtureEvaluator:
-    AgentInferenceCandidateEvaluating,
+    InferenceCandidateEvaluating,
     Sendable
 {
-    let identifier: AgentInferenceEvaluatorIdentifier =
+    let identifier: InferenceEvaluatorIdentifier =
         "strategy_recovery_fixture_evaluator"
 
-    func evaluate<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        output: Inference.Output,
-        attempt: AgentInferenceAttemptRecord
-    ) async throws -> AgentInferenceCandidateScore {
+    func evaluate<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        output: InferenceType.Output,
+        attempt: InferenceAttemptRecord
+    ) async throws -> InferenceCandidateScore {
         let data = try JSONEncoder().encode(
             output
         )
@@ -378,7 +378,7 @@ private struct StrategyRecoveryFixtureEvaluator:
             score = 0.1
         }
 
-        return try AgentInferenceCandidateScore(
+        return try InferenceCandidateScore(
             score: score,
             metadata: [
                 "value": value,
@@ -388,19 +388,19 @@ private struct StrategyRecoveryFixtureEvaluator:
 }
 
 private struct StrategyRecoveryFixtureGuide:
-    AgentInferenceRefinementGuiding,
+    InferenceRefinementGuiding,
     Sendable
 {
-    let identifier: AgentInferenceRefinementGuideIdentifier =
+    let identifier: InferenceRefinementGuideIdentifier =
         "strategy_recovery_fixture_guide"
 
-    func guide<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        output: Inference.Output,
-        attempt: AgentInferenceAttemptRecord,
-        realization: AgentInferenceRealization
-    ) async throws -> AgentInferenceRefinementDecision {
+    func guide<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        output: InferenceType.Output,
+        attempt: InferenceAttemptRecord,
+        realization: InferenceRealizationConfiguration
+    ) async throws -> InferenceRefinementDecision {
         let data = try JSONEncoder().encode(
             output
         )
@@ -411,38 +411,38 @@ private struct StrategyRecoveryFixtureGuide:
 
         switch value {
         case "ROUGH":
-            return AgentInferenceRefinementDecision(
-                evaluation: try AgentInferenceCandidateScore(
+            return InferenceRefinementDecision(
+                evaluation: try InferenceCandidateScore(
                     score: 0.2,
                     metadata: [
                         "value": value,
                     ]
                 ),
                 directive: .continueWith(
-                    try AgentInferenceRefinementInstructions(
+                    try InferenceRefinementInstructions(
                         "Improve ROUGH to BETTER."
                     )
                 )
             )
 
         case "BETTER":
-            return AgentInferenceRefinementDecision(
-                evaluation: try AgentInferenceCandidateScore(
+            return InferenceRefinementDecision(
+                evaluation: try InferenceCandidateScore(
                     score: 0.7,
                     metadata: [
                         "value": value,
                     ]
                 ),
                 directive: .continueWith(
-                    try AgentInferenceRefinementInstructions(
+                    try InferenceRefinementInstructions(
                         "Improve BETTER to FINAL."
                     )
                 )
             )
 
         case "FINAL":
-            return AgentInferenceRefinementDecision(
-                evaluation: try AgentInferenceCandidateScore(
+            return InferenceRefinementDecision(
+                evaluation: try InferenceCandidateScore(
                     score: 1.0,
                     metadata: [
                         "value": value,
@@ -507,7 +507,7 @@ private func runSampledTransportRecoveryTransparency()
 {
     let state = StrategyRecoveryFixtureState()
     let evaluator = StrategyRecoveryFixtureEvaluator()
-    let executor = AgentInferenceExecutor(
+    let executor = InferenceExecutor(
         modelInvoker: StrategyRecoveryFixtureModelInvoker(
             mode: .transport,
             outputs: [
@@ -521,11 +521,10 @@ private func runSampledTransportRecoveryTransparency()
         sampleEvaluator: evaluator,
         recoveryClassifier: StrategyRecoveryFixtureClassifier()
     )
-    let realization = AgentInferenceRealization(
+    let realization = InferenceRealizationConfiguration(
         strategy: .sampled,
-        modelSelection: .executor,
         instructions: "Generate sampled fixture candidates.",
-        budget: try AgentInferenceBudget(
+        budget: try InferenceBudget(
             maximumAttempts: 3
         ),
         recovery: strategyRecoveryFixturePolicy(),
@@ -645,7 +644,7 @@ private func runRefiningTransportRecoveryTransparency()
 {
     let state = StrategyRecoveryFixtureState()
     let guide = StrategyRecoveryFixtureGuide()
-    let executor = AgentInferenceExecutor(
+    let executor = InferenceExecutor(
         modelInvoker: StrategyRecoveryFixtureModelInvoker(
             mode: .transport,
             outputs: [
@@ -659,11 +658,10 @@ private func runRefiningTransportRecoveryTransparency()
         refinementGuide: guide,
         recoveryClassifier: StrategyRecoveryFixtureClassifier()
     )
-    let realization = AgentInferenceRealization(
+    let realization = InferenceRealizationConfiguration(
         strategy: .refining,
-        modelSelection: .executor,
         instructions: "Produce the initial refining fixture candidate.",
-        budget: try AgentInferenceBudget(
+        budget: try InferenceBudget(
             maximumAttempts: 3
         ),
         recovery: strategyRecoveryFixturePolicy(),
@@ -793,7 +791,7 @@ private func runRefiningOutputRepairTransparency()
 {
     let state = StrategyRecoveryFixtureState()
     let guide = StrategyRecoveryFixtureGuide()
-    let executor = AgentInferenceExecutor(
+    let executor = InferenceExecutor(
         modelInvoker: StrategyRecoveryFixtureModelInvoker(
             mode: .outputRepair,
             outputs: [
@@ -807,11 +805,10 @@ private func runRefiningOutputRepairTransparency()
         refinementGuide: guide,
         recoveryClassifier: StrategyRecoveryFixtureClassifier()
     )
-    let realization = AgentInferenceRealization(
+    let realization = InferenceRealizationConfiguration(
         strategy: .refining,
-        modelSelection: .executor,
         instructions: "Produce the initial refining fixture candidate.",
-        budget: try AgentInferenceBudget(
+        budget: try InferenceBudget(
             maximumAttempts: 3
         ),
         recovery: strategyRecoveryFixturePolicy(),
@@ -936,7 +933,7 @@ private func runRefiningOutputRepairTransparency()
     ]
 }
 
-let agentInferenceStrategyRecoveryTransparencyFlows: [TestFlow] = [
+let inferenceStrategyRecoveryTransparencyFlows: [TestFlow] = [
     TestFlow(
         "sampled-recovery-transparency",
         tags: [

@@ -1,6 +1,6 @@
 import Primitives
 
-public struct AgentInferenceEvaluatorIdentifier:
+public struct InferenceEvaluatorIdentifier:
     StringIdentifier
 {
     public let rawValue: String

@@ -1,7 +1,7 @@
 import Agentic
 import AgenticRecovery
 
-public enum AgentInferenceInvocationOutcome:
+public enum InferenceInvocationOutcome:
     Sendable,
     Codable,
     Hashable
@@ -44,14 +44,14 @@ public enum AgentInferenceInvocationOutcome:
     case failed(Failure)
 }
 
-public struct AgentInferenceInvocationRecord:
+public struct InferenceInvocationRecord:
     Sendable,
     Codable,
     Hashable
 {
     public let index: Int
     public let selection: AgentModelSelection
-    public let outcome: AgentInferenceInvocationOutcome
+    public let outcome: InferenceInvocationOutcome
     public let metadata: [String: String]
 
     private enum CodingKeys: String, CodingKey {
@@ -66,7 +66,7 @@ public struct AgentInferenceInvocationRecord:
     public init(
         index: Int,
         selection: AgentModelSelection,
-        outcome: AgentInferenceInvocationOutcome,
+        outcome: InferenceInvocationOutcome,
         metadata: [String: String] = [:]
     ) {
         self.index = index
@@ -145,7 +145,7 @@ public struct AgentInferenceInvocationRecord:
         ) ?? [:]
 
         if let outcome = try container.decodeIfPresent(
-            AgentInferenceInvocationOutcome.self,
+            InferenceInvocationOutcome.self,
             forKey: .outcome
         ) {
             self.init(
@@ -198,7 +198,7 @@ public struct AgentInferenceInvocationRecord:
     }
 }
 
-public enum AgentInferenceAttemptOutcome:
+public enum InferenceAttemptOutcome:
     Sendable,
     Codable,
     Hashable
@@ -221,19 +221,19 @@ public enum AgentInferenceAttemptOutcome:
     }
 
     case succeeded(Success)
-    case failed(AgentInferenceFailureRecord)
+    case failed(InferenceFailureRecord)
 }
 
-public struct AgentInferenceAttemptRecord:
+public struct InferenceAttemptRecord:
     Sendable,
     Codable,
     Hashable
 {
     public var index: Int
-    public var adapter: AgentInferenceAdapterIdentifier
+    public var adapter: InferenceAdapterIdentifier
     public var selection: AgentModelSelection
-    public var outcome: AgentInferenceAttemptOutcome
-    public var invocations: [AgentInferenceInvocationRecord]
+    public var outcome: InferenceAttemptOutcome
+    public var invocations: [InferenceInvocationRecord]
     public var recoveries: [Recovery.Record]
     public var metadata: [String: String]
 
@@ -251,10 +251,10 @@ public struct AgentInferenceAttemptRecord:
 
     public init(
         index: Int,
-        adapter: AgentInferenceAdapterIdentifier,
+        adapter: InferenceAdapterIdentifier,
         selection: AgentModelSelection,
-        outcome: AgentInferenceAttemptOutcome,
-        invocations: [AgentInferenceInvocationRecord]? = nil,
+        outcome: InferenceAttemptOutcome,
+        invocations: [InferenceInvocationRecord]? = nil,
         recoveries: [Recovery.Record] = [],
         metadata: [String: String] = [:]
     ) {
@@ -269,7 +269,7 @@ public struct AgentInferenceAttemptRecord:
             switch outcome {
             case .succeeded(let success):
                 self.invocations = [
-                    AgentInferenceInvocationRecord(
+                    InferenceInvocationRecord(
                         index: 0,
                         selection: selection,
                         route: success.route,
@@ -289,11 +289,11 @@ public struct AgentInferenceAttemptRecord:
 
     public init(
         index: Int,
-        adapter: AgentInferenceAdapterIdentifier,
+        adapter: InferenceAdapterIdentifier,
         selection: AgentModelSelection,
         route: AgentModelRouteRecord,
         usage: AgentUsage? = nil,
-        invocations: [AgentInferenceInvocationRecord]? = nil,
+        invocations: [InferenceInvocationRecord]? = nil,
         recoveries: [Recovery.Record] = [],
         metadata: [String: String] = [:]
     ) {
@@ -315,10 +315,10 @@ public struct AgentInferenceAttemptRecord:
 
     public init(
         index: Int,
-        adapter: AgentInferenceAdapterIdentifier,
+        adapter: InferenceAdapterIdentifier,
         selection: AgentModelSelection,
-        failure: AgentInferenceFailureRecord,
-        invocations: [AgentInferenceInvocationRecord] = [],
+        failure: InferenceFailureRecord,
+        invocations: [InferenceInvocationRecord] = [],
         recoveries: [Recovery.Record] = [],
         metadata: [String: String] = [:]
     ) {
@@ -353,7 +353,7 @@ public struct AgentInferenceAttemptRecord:
         }
     }
 
-    public var failure: AgentInferenceFailureRecord? {
+    public var failure: InferenceFailureRecord? {
         switch outcome {
         case .succeeded:
             nil
@@ -375,7 +375,7 @@ public struct AgentInferenceAttemptRecord:
             forKey: .index
         )
         let adapter = try container.decode(
-            AgentInferenceAdapterIdentifier.self,
+            InferenceAdapterIdentifier.self,
             forKey: .adapter
         )
         let selection = try container.decode(
@@ -387,7 +387,7 @@ public struct AgentInferenceAttemptRecord:
             forKey: .metadata
         ) ?? [:]
         let invocations = try container.decodeIfPresent(
-            [AgentInferenceInvocationRecord].self,
+            [InferenceInvocationRecord].self,
             forKey: .invocations
         )
         let recoveries = try container.decodeIfPresent(
@@ -395,10 +395,10 @@ public struct AgentInferenceAttemptRecord:
             forKey: .recoveries
         ) ?? []
 
-        let outcome: AgentInferenceAttemptOutcome
+        let outcome: InferenceAttemptOutcome
 
         if let decodedOutcome = try container.decodeIfPresent(
-            AgentInferenceAttemptOutcome.self,
+            InferenceAttemptOutcome.self,
             forKey: .outcome
         ) {
             outcome = decodedOutcome
@@ -447,28 +447,28 @@ public struct AgentInferenceAttemptRecord:
     }
 }
 
-public struct AgentInferenceExecutionRecord:
+public struct InferenceExecutionRecord:
     Sendable,
     Codable,
     Hashable
 {
-    public var inference: AgentInferenceIdentifier
-    public var strategy: AgentInferenceStrategyIdentifier
-    public var attempts: [AgentInferenceAttemptRecord]
-    public var failure: AgentInferenceFailureRecord?
-    public var budget: AgentInferenceBudget?
-    public var sampling: AgentInferenceSamplingRecord?
-    public var refinement: AgentInferenceRefinementRecord?
+    public var inference: InferenceIdentifier
+    public var strategy: InferenceStrategyIdentifier
+    public var attempts: [InferenceAttemptRecord]
+    public var failure: InferenceFailureRecord?
+    public var budget: InferenceBudget?
+    public var sampling: InferenceSamplingRecord?
+    public var refinement: InferenceRefinementRecord?
     public var metadata: [String: String]
 
     public init(
-        inference: AgentInferenceIdentifier,
-        strategy: AgentInferenceStrategyIdentifier,
-        attempts: [AgentInferenceAttemptRecord] = [],
-        failure: AgentInferenceFailureRecord? = nil,
-        budget: AgentInferenceBudget? = nil,
-        sampling: AgentInferenceSamplingRecord? = nil,
-        refinement: AgentInferenceRefinementRecord? = nil,
+        inference: InferenceIdentifier,
+        strategy: InferenceStrategyIdentifier,
+        attempts: [InferenceAttemptRecord] = [],
+        failure: InferenceFailureRecord? = nil,
+        budget: InferenceBudget? = nil,
+        sampling: InferenceSamplingRecord? = nil,
+        refinement: InferenceRefinementRecord? = nil,
         metadata: [String: String] = [:]
     ) {
         self.inference = inference
@@ -481,33 +481,33 @@ public struct AgentInferenceExecutionRecord:
         self.metadata = metadata
     }
 
-    public var budgetUsage: AgentInferenceBudgetUsage {
-        AgentInferenceBudgetUsage(
+    public var budgetUsage: InferenceBudgetUsage {
+        InferenceBudgetUsage(
             attempts: attempts
         )
     }
 }
 
-public struct AgentInferenceAttemptResult<Output: Sendable>: Sendable {
+public struct InferenceAttemptResult<Output: Sendable>: Sendable {
     public var output: Output
-    public var record: AgentInferenceAttemptRecord
+    public var record: InferenceAttemptRecord
 
     public init(
         output: Output,
-        record: AgentInferenceAttemptRecord
+        record: InferenceAttemptRecord
     ) {
         self.output = output
         self.record = record
     }
 }
 
-public struct AgentInferenceExecutionResult<Output: Sendable>: Sendable {
+public struct InferenceExecutionResult<Output: Sendable>: Sendable {
     public var output: Output
-    public var record: AgentInferenceExecutionRecord
+    public var record: InferenceExecutionRecord
 
     public init(
         output: Output,
-        record: AgentInferenceExecutionRecord
+        record: InferenceExecutionRecord
     ) {
         self.output = output
         self.record = record

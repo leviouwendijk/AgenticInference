@@ -1,7 +1,7 @@
 import AgenticRecovery
 import Foundation
 
-public struct AgentInferenceRecoveryError:
+public struct InferenceRecoveryError:
     Error,
     Sendable,
     LocalizedError

@@ -1,12 +1,13 @@
+import Agentic
 import Foundation
 
-public enum AgentInferenceExecutionError:
+public enum InferenceExecutionError:
     Error,
     Sendable,
     LocalizedError
 {
     case adapterUnspecified(
-        inference: AgentInferenceIdentifier
+        inference: InferenceIdentifier
     )
 
     public var errorDescription: String? {

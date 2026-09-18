@@ -4,7 +4,7 @@ import AgenticRecovery
 import Foundation
 import TestFlows
 
-private struct OutputRepairFixtureInference: AgentInference {
+private struct OutputRepairFixtureInference: Inference {
     struct Input:
         Sendable,
         Codable
@@ -14,7 +14,7 @@ private struct OutputRepairFixtureInference: AgentInference {
 
     typealias Output = String
 
-    static let definition = AgentInferenceDefinition(
+    static let definition = InferenceDefinition(
         identifier: "fixture.output_repair",
         purpose: "Prove structured-output repair within one semantic inference attempt."
     )
@@ -40,19 +40,19 @@ private enum OutputRepairFixtureError:
 }
 
 private struct OutputRepairFixtureAdapter:
-    AgentInferenceAdapter,
-    AgentInferenceOutputRepairing,
+    InferenceAdapter,
+    InferenceOutputRepairing,
     Sendable
 {
-    let identifier: AgentInferenceAdapterIdentifier =
+    let identifier: InferenceAdapterIdentifier =
         "output_repair_fixture_adapter"
 
-    func prepare<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        realization: AgentInferenceRealization
-    ) throws -> AgentInferenceAdaptation {
-        AgentInferenceAdaptation(
+    func prepare<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        realization: InferenceRealizationConfiguration
+    ) throws -> InferenceAdaptation {
+        InferenceAdaptation(
             request: AgentRequest(
                 messages: [
                     AgentMessage(
@@ -70,13 +70,13 @@ private struct OutputRepairFixtureAdapter:
         )
     }
 
-    func decode<Inference: AgentInference>(
-        _ inference: Inference.Type,
+    func decode<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
         response: AgentResponse
-    ) throws -> Inference.Output {
+    ) throws -> InferenceType.Output {
         do {
             return try JSONDecoder().decode(
-                Inference.Output.self,
+                InferenceType.Output.self,
                 from: Data(
                     response.message.content.text.utf8
                 )
@@ -86,14 +86,14 @@ private struct OutputRepairFixtureAdapter:
         }
     }
 
-    func repair<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
+    func repair<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
         response: AgentResponse,
         error: any Error,
-        realization: AgentInferenceRealization
-    ) throws -> AgentInferenceAdaptation {
-        AgentInferenceAdaptation(
+        realization: InferenceRealizationConfiguration
+    ) throws -> InferenceAdaptation {
+        InferenceAdaptation(
             request: AgentRequest(
                 messages: [
                     AgentMessage(
@@ -117,14 +117,14 @@ private struct OutputRepairFixtureAdapter:
 }
 
 private struct OutputRepairFixtureAdapterResolver:
-    AgentInferenceAdapterResolving,
+    InferenceAdapterResolving,
     Sendable
 {
     let adapter = OutputRepairFixtureAdapter()
 
     func require(
-        _ identifier: AgentInferenceAdapterIdentifier
-    ) throws -> any AgentInferenceAdapter {
+        _ identifier: InferenceAdapterIdentifier
+    ) throws -> any InferenceAdapter {
         guard identifier == adapter.identifier else {
             throw OutputRepairFixtureError.unknownAdapter(
                 identifier.rawValue
@@ -260,13 +260,13 @@ private struct OutputRepairFixtureModelInvoker:
 }
 
 private struct OutputRepairFixtureClassifier:
-    AgentInferenceRecoveryClassifying,
+    InferenceRecoveryClassifying,
     Sendable
 {
     func incident(
         for error: any Error,
         stage: Recovery.Stage,
-        inference: AgentInferenceIdentifier,
+        inference: InferenceIdentifier,
         attemptIndex: Int,
         invocationIndex: Int
     ) -> Recovery.Incident? {
@@ -294,7 +294,7 @@ private struct OutputRepairFixtureClassifier:
     }
 }
 
-let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
+let inferenceOutputRepairRecoveryFlows: [TestFlow] = [
     TestFlow(
         "inference-output-repair-recovery",
         tags: [
@@ -306,7 +306,7 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
         ]
     ) {
         let state = OutputRepairFixtureState()
-        let executor = AgentInferenceExecutor(
+        let executor = InferenceExecutor(
             modelInvoker: OutputRepairFixtureModelInvoker(
                 state: state
             ),
@@ -339,9 +339,8 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
                 ),
             ]
         )
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .direct,
-            modelSelection: .executor,
             instructions: "Return the fixture output.",
             budget: .singleAttempt,
             recovery: policy
@@ -490,7 +489,7 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
         ]
     ) {
         let state = OutputRepairFixtureState()
-        let executor = AgentInferenceExecutor(
+        let executor = InferenceExecutor(
             modelInvoker: OutputRepairFixtureModelInvoker(
                 state: state
             ),
@@ -500,14 +499,13 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             recoveryClassifier:
                 OutputRepairFixtureClassifier()
         )
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .direct,
-            modelSelection: .executor,
             instructions: "Return the fixture output.",
             budget: .singleAttempt
         )
 
-        let terminalFailure: AgentInferenceExecutionFailure?
+        let terminalFailure: InferenceExecutionFailure?
 
         do {
             _ = try await executor.execute(
@@ -518,7 +516,7 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
                 realization: realization
             )
             terminalFailure = nil
-        } catch let error as AgentInferenceExecutionFailure {
+        } catch let error as InferenceExecutionFailure {
             terminalFailure = error
         } catch {
             throw error
@@ -552,7 +550,7 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             failure.record.invocations.first,
             "failed decoding attempt retains the provider invocation that produced the malformed response"
         )
-        let budgetUsage = AgentInferenceBudgetUsage(
+        let budgetUsage = InferenceBudgetUsage(
             attempts: [failure.record]
         )
 
@@ -682,7 +680,7 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
         ]
     ) {
         let state = OutputRepairFixtureState()
-        let executor = AgentInferenceExecutor(
+        let executor = InferenceExecutor(
             modelInvoker: OutputRepairFixtureModelInvoker(
                 state: state
             ),
@@ -717,19 +715,18 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
                 ),
             ]
         )
-        let budget = try AgentInferenceBudget(
+        let budget = try InferenceBudget(
             maximumAttempts: 1,
             maximumTotalTokens: 2
         )
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .direct,
-            modelSelection: .executor,
             instructions: "Return the fixture output.",
             budget: budget,
             recovery: policy
         )
 
-        let terminalFailure: AgentInferenceExecutionFailure?
+        let terminalFailure: InferenceExecutionFailure?
 
         do {
             _ = try await executor.execute(
@@ -740,7 +737,7 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
                 realization: realization
             )
             terminalFailure = nil
-        } catch let error as AgentInferenceExecutionFailure {
+        } catch let error as InferenceExecutionFailure {
             terminalFailure = error
         } catch {
             throw error
@@ -774,7 +771,7 @@ let agentInferenceOutputRepairRecoveryFlows: [TestFlow] = [
             failure.record.invocations.first,
             "budget-blocked repair retains the malformed provider response invocation"
         )
-        let budgetUsage = AgentInferenceBudgetUsage(
+        let budgetUsage = InferenceBudgetUsage(
             attempts: [failure.record]
         )
 

@@ -1,9 +1,10 @@
+import Agentic
 import AgenticInference
 import AgenticRecovery
 import Foundation
 import TestFlows
 
-let agentInferenceRecoveryFlows: [TestFlow] = [
+let inferenceRecoveryFlows: [TestFlow] = [
     TestFlow(
         "inference-realization-recovery-policy",
         tags: [
@@ -39,9 +40,8 @@ let agentInferenceRecoveryFlows: [TestFlow] = [
             ]
         )
 
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .direct,
-            modelSelection: .executor,
             instructions: "Return structured fixture output.",
             budget: .singleAttempt,
             recovery: policy
@@ -81,7 +81,7 @@ let agentInferenceRecoveryFlows: [TestFlow] = [
         )
 
         let persisted = try JSONDecoder().decode(
-            AgentInferenceRealization.self,
+            InferenceRealizationConfiguration.self,
             from: JSONEncoder().encode(
                 realization
             )
@@ -112,9 +112,8 @@ let agentInferenceRecoveryFlows: [TestFlow] = [
             "compatibility",
         ]
     ) {
-        let realization = AgentInferenceRealization(
+        let realization = InferenceRealizationConfiguration(
             strategy: .direct,
-            modelSelection: .executor,
             instructions: "No recovery policy is authored here.",
             budget: .singleAttempt
         )

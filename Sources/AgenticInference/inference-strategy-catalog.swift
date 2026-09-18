@@ -1,12 +1,13 @@
+import Agentic
 import Foundation
 
-public enum AgentInferenceStrategyCatalogError:
+public enum InferenceStrategyCatalogError:
     Error,
     Sendable,
     LocalizedError
 {
-    case duplicateStrategy(AgentInferenceStrategyIdentifier)
-    case unknownStrategy(AgentInferenceStrategyIdentifier)
+    case duplicateStrategy(InferenceStrategyIdentifier)
+    case unknownStrategy(InferenceStrategyIdentifier)
 
     public var errorDescription: String? {
         switch self {
@@ -19,26 +20,26 @@ public enum AgentInferenceStrategyCatalogError:
     }
 }
 
-public struct AgentInferenceStrategyCatalog:
-    AgentInferenceStrategyResolving,
+public struct InferenceStrategyCatalog:
+    InferenceStrategyResolving,
     Sendable
 {
     private let strategies: [
-        AgentInferenceStrategyIdentifier:
-            any AgentInferenceStrategy
+        InferenceStrategyIdentifier:
+            any InferenceStrategy
     ]
 
     public init(
-        strategies: [any AgentInferenceStrategy]
+        strategies: [any InferenceStrategy]
     ) throws {
         var indexed: [
-            AgentInferenceStrategyIdentifier:
-                any AgentInferenceStrategy
+            InferenceStrategyIdentifier:
+                any InferenceStrategy
         ] = [:]
 
         for strategy in strategies {
             guard indexed[strategy.identifier] == nil else {
-                throw AgentInferenceStrategyCatalogError.duplicateStrategy(
+                throw InferenceStrategyCatalogError.duplicateStrategy(
                     strategy.identifier
                 )
             }
@@ -51,18 +52,18 @@ public struct AgentInferenceStrategyCatalog:
 
     private init(
         strategies: [
-            AgentInferenceStrategyIdentifier:
-                any AgentInferenceStrategy
+            InferenceStrategyIdentifier:
+                any InferenceStrategy
         ]
     ) {
         self.strategies = strategies
     }
 
     public func require(
-        _ identifier: AgentInferenceStrategyIdentifier
-    ) throws -> any AgentInferenceStrategy {
+        _ identifier: InferenceStrategyIdentifier
+    ) throws -> any InferenceStrategy {
         guard let strategy = strategies[identifier] else {
-            throw AgentInferenceStrategyCatalogError.unknownStrategy(
+            throw InferenceStrategyCatalogError.unknownStrategy(
                 identifier
             )
         }
@@ -78,12 +79,12 @@ public struct AgentInferenceStrategyCatalog:
     )
 
     public static func configured(
-        sampleEvaluator: (any AgentInferenceCandidateEvaluating)? = nil,
-        refinementGuide: (any AgentInferenceRefinementGuiding)? = nil
+        sampleEvaluator: (any InferenceCandidateEvaluating)? = nil,
+        refinementGuide: (any InferenceRefinementGuiding)? = nil
     ) -> Self {
         var strategies: [
-            AgentInferenceStrategyIdentifier:
-                any AgentInferenceStrategy
+            InferenceStrategyIdentifier:
+                any InferenceStrategy
         ] = [
             .direct: DirectInferenceStrategy(),
             .native_reasoning: NativeReasoningInferenceStrategy(),

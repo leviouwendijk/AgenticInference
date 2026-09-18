@@ -17,55 +17,57 @@ public enum SampledInferenceStrategyError:
 }
 
 public struct SampledInferenceStrategy:
-    AgentInferenceStrategy,
+    InferenceStrategy,
     Sendable
 {
-    public let identifier: AgentInferenceStrategyIdentifier = .sampled
+    public let identifier: InferenceStrategyIdentifier = .sampled
 
-    private let evaluator: any AgentInferenceCandidateEvaluating
+    private let evaluator: any InferenceCandidateEvaluating
 
     public init(
-        evaluator: any AgentInferenceCandidateEvaluating
+        evaluator: any InferenceCandidateEvaluating
     ) {
         self.evaluator = evaluator
     }
 
-    public func execute<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        realization: AgentInferenceRealization,
-        attempts: any AgentInferenceAttemptExecuting
-    ) async throws -> AgentInferenceExecutionResult<Inference.Output> {
-        var attemptRecords: [AgentInferenceAttemptRecord] = []
-        var evaluations: [AgentInferenceSampleEvaluation] = []
-        var selectedOutput: Inference.Output?
+    public func execute<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        realization: InferenceRealizationConfiguration,
+        context: InferenceExecutionContext,
+        attempts: any InferenceAttemptExecuting
+    ) async throws -> InferenceExecutionResult<InferenceType.Output> {
+        var attemptRecords: [InferenceAttemptRecord] = []
+        var evaluations: [InferenceSampleEvaluation] = []
+        var selectedOutput: InferenceType.Output?
         var selectedAttemptIndex: Int?
         var selectedScore: Double?
 
         while attemptRecords.count < realization.budget.maximumAttempts {
             let attemptIndex = attemptRecords.count
-            let attempt: AgentInferenceAttemptResult<Inference.Output>
+            let attempt: InferenceAttemptResult<InferenceType.Output>
 
             do {
                 attempt = try await attempts.execute(
                     inference,
                     input: input,
                     realization: realization,
+                    context: context,
                     priorAttempts: attemptRecords,
                     additionalRequirements: AgentModelRequirements(
                         capabilities: []
                     )
                 )
-            } catch let failure as AgentInferenceAttemptFailure {
+            } catch let failure as InferenceAttemptFailure {
                 let sampling = selectedAttemptIndex.map {
-                    AgentInferenceSamplingRecord(
+                    InferenceSamplingRecord(
                         evaluator: evaluator.identifier,
                         evaluations: evaluations,
                         selectedAttemptIndex: $0
                     )
                 }
 
-                throw AgentInferenceExecutionFailure(
+                throw InferenceExecutionFailure(
                     attempt: failure,
                     inference: inference.definition.identifier,
                     strategy: identifier,
@@ -74,9 +76,9 @@ public struct SampledInferenceStrategy:
                     sampling: sampling,
                     metadata: realization.metadata
                 )
-            } catch AgentInferenceBudgetError.maximumTotalTokensReached {
+            } catch InferenceBudgetError.maximumTotalTokensReached {
                 break
-            } catch AgentInferenceBudgetError.totalTokenUsageUnavailable {
+            } catch InferenceBudgetError.totalTokenUsageUnavailable {
                 break
             }
 
@@ -84,7 +86,7 @@ public struct SampledInferenceStrategy:
                 attempt.record
             )
 
-            let candidateScore: AgentInferenceCandidateScore
+            let candidateScore: InferenceCandidateScore
 
             do {
                 candidateScore = try await evaluator.evaluate(
@@ -95,14 +97,14 @@ public struct SampledInferenceStrategy:
                 )
             } catch {
                 let sampling = selectedAttemptIndex.map {
-                    AgentInferenceSamplingRecord(
+                    InferenceSamplingRecord(
                         evaluator: evaluator.identifier,
                         evaluations: evaluations,
                         selectedAttemptIndex: $0
                     )
                 }
 
-                throw AgentInferenceExecutionFailure(
+                throw InferenceExecutionFailure(
                     capturing: error,
                     inference: inference.definition.identifier,
                     strategy: identifier,
@@ -114,7 +116,7 @@ public struct SampledInferenceStrategy:
             }
 
             evaluations.append(
-                AgentInferenceSampleEvaluation(
+                InferenceSampleEvaluation(
                     attemptIndex: attemptIndex,
                     evaluator: evaluator.identifier,
                     evaluation: candidateScore
@@ -141,14 +143,14 @@ public struct SampledInferenceStrategy:
             throw SampledInferenceStrategyError.noSamplesProduced
         }
 
-        return AgentInferenceExecutionResult(
+        return InferenceExecutionResult(
             output: selectedOutput,
-            record: AgentInferenceExecutionRecord(
+            record: InferenceExecutionRecord(
                 inference: inference.definition.identifier,
                 strategy: identifier,
                 attempts: attemptRecords,
                 budget: realization.budget,
-                sampling: AgentInferenceSamplingRecord(
+                sampling: InferenceSamplingRecord(
                     evaluator: evaluator.identifier,
                     evaluations: evaluations,
                     selectedAttemptIndex: selectedAttemptIndex

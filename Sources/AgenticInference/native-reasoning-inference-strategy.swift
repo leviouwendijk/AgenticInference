@@ -1,26 +1,28 @@
 import Agentic
 
 public struct NativeReasoningInferenceStrategy:
-    AgentInferenceStrategy,
+    InferenceStrategy,
     Sendable
 {
-    public let identifier: AgentInferenceStrategyIdentifier = .native_reasoning
+    public let identifier: InferenceStrategyIdentifier = .native_reasoning
 
     public init() {}
 
-    public func execute<Inference: AgentInference>(
-        _ inference: Inference.Type,
-        input: Inference.Input,
-        realization: AgentInferenceRealization,
-        attempts: any AgentInferenceAttemptExecuting
-    ) async throws -> AgentInferenceExecutionResult<Inference.Output> {
-        let attempt: AgentInferenceAttemptResult<Inference.Output>
+    public func execute<InferenceType: Inference>(
+        _ inference: InferenceType.Type,
+        input: InferenceType.Input,
+        realization: InferenceRealizationConfiguration,
+        context: InferenceExecutionContext,
+        attempts: any InferenceAttemptExecuting
+    ) async throws -> InferenceExecutionResult<InferenceType.Output> {
+        let attempt: InferenceAttemptResult<InferenceType.Output>
 
         do {
             attempt = try await attempts.execute(
                 inference,
                 input: input,
                 realization: realization,
+                context: context,
                 priorAttempts: [],
                 additionalRequirements: AgentModelRequirements(
                     capabilities: [
@@ -28,8 +30,8 @@ public struct NativeReasoningInferenceStrategy:
                     ]
                 )
             )
-        } catch let failure as AgentInferenceAttemptFailure {
-            throw AgentInferenceExecutionFailure(
+        } catch let failure as InferenceAttemptFailure {
+            throw InferenceExecutionFailure(
                 attempt: failure,
                 inference: inference.definition.identifier,
                 strategy: identifier,
@@ -38,9 +40,9 @@ public struct NativeReasoningInferenceStrategy:
             )
         }
 
-        return AgentInferenceExecutionResult(
+        return InferenceExecutionResult(
             output: attempt.output,
-            record: AgentInferenceExecutionRecord(
+            record: InferenceExecutionRecord(
                 inference: inference.definition.identifier,
                 strategy: identifier,
                 attempts: [

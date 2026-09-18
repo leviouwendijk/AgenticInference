@@ -2,7 +2,7 @@ import Agentic
 import Macros
 import Schema
 
-public extension Standard.Inferences {
+extension Standard.Inferences {
     @Inference
     public struct DetermineNextAction {
         public struct Candidate:

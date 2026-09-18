@@ -8,7 +8,7 @@ extension InferenceFlowTesting {
         throws
         -> [TestFlowDiagnostic]
     {
-        let input = DetermineNextAction.Input(
+        let input = Standard.Inferences.DetermineNextAction.Input(
             goal: "Finish the current task safely.",
             state: "Implementation is complete and tests pass.",
             candidates: [
@@ -27,7 +27,7 @@ extension InferenceFlowTesting {
             input
         )
         let decodedInput = try JSONDecoder().decode(
-            DetermineNextAction.Input.self,
+            Standard.Inferences.DetermineNextAction.Input.self,
             from: encodedInput
         )
 
@@ -37,24 +37,24 @@ extension InferenceFlowTesting {
             "determine-next-action input survives typed codec round trip"
         )
         try Expect.equal(
-            DetermineNextAction.definition.identifier,
-            InferenceIdentifier("determine_next_action"),
+            Standard.Inferences.DetermineNextAction.definition.identifier,
+            InferenceIdentifier("standard.inferences.determine_next_action"),
             "determine-next-action exposes stable semantic inference identifier"
         )
         try Expect.equal(
-            DetermineNextAction.definition.purpose,
+            Standard.Inferences.DetermineNextAction.definition.purpose,
             "Select the most appropriate next action from the supplied candidates for the current goal and state.",
             "determine-next-action exposes semantic inference purpose"
         )
 
-        let output = DetermineNextAction.Output(
+        let output = Standard.Inferences.DetermineNextAction.Output(
             selectedActionIdentifier: "publish"
         )
         let encodedOutput = try JSONEncoder().encode(
             output
         )
         let decodedOutput = try JSONDecoder().decode(
-            DetermineNextAction.Output.self,
+            Standard.Inferences.DetermineNextAction.Output.self,
             from: encodedOutput
         )
 
@@ -65,7 +65,7 @@ extension InferenceFlowTesting {
         )
 
         let schemaData = try JSONEncoder().encode(
-            DetermineNextAction.Output.jsonschema.jsonvalue
+            Standard.Inferences.DetermineNextAction.Output.jsonschema.jsonvalue
         )
         let schemaText = String(
             decoding: schemaData,
@@ -83,7 +83,7 @@ extension InferenceFlowTesting {
         return [
             .field(
                 "inference",
-                DetermineNextAction.definition.identifier.rawValue
+                Standard.Inferences.DetermineNextAction.definition.identifier.rawValue
             ),
             .field(
                 "candidates",

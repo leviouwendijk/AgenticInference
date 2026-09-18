@@ -2,49 +2,51 @@ import Agentic
 import Macros
 import Schema
 
-@Inference
-public struct AssessCandidateAction {
-    public struct Input:
-        Sendable,
-        Codable,
-        Hashable
-    {
-        public var goal: String
-        public var state: String
-        public var candidate: DetermineNextAction.Candidate
+public extension Standard.Inferences {
+    @Inference
+    public struct AssessCandidateAction {
+        public struct Input:
+            Sendable,
+            Codable,
+            Hashable
+        {
+            public var goal: String
+            public var state: String
+            public var candidate: Standard.Inferences.DetermineNextAction.Candidate
 
-        public init(
-            goal: String,
-            state: String,
-            candidate: DetermineNextAction.Candidate
-        ) {
-            self.goal = goal
-            self.state = state
-            self.candidate = candidate
+            public init(
+                goal: String,
+                state: String,
+                candidate: Standard.Inferences.DetermineNextAction.Candidate
+            ) {
+                self.goal = goal
+                self.state = state
+                self.candidate = candidate
+            }
         }
-    }
 
-    @JSONSchema
-    public struct Output:
-        Sendable,
-        Codable,
-        Hashable
-    {
-        /// Whether the candidate is appropriate to perform next.
-        public var acceptable: Bool
+        @JSONSchema
+        public struct Output:
+            Sendable,
+            Codable,
+            Hashable
+        {
+            /// Whether the candidate is appropriate to perform next.
+            public var acceptable: Bool
 
-        /// Concise assessment of why the candidate is or is not appropriate.
-        public var assessment: String
+            /// Concise assessment of why the candidate is or is not appropriate.
+            public var assessment: String
 
-        public init(
-            acceptable: Bool,
-            assessment: String
-        ) {
-            self.acceptable = acceptable
-            self.assessment = assessment
+            public init(
+                acceptable: Bool,
+                assessment: String
+            ) {
+                self.acceptable = acceptable
+                self.assessment = assessment
+            }
         }
-    }
 
-    public static let purpose =
-        "Assess whether one candidate action is appropriate for the current goal and state."
+        public static let purpose =
+            "Assess whether one candidate action is appropriate for the current goal and state."
+    }
 }

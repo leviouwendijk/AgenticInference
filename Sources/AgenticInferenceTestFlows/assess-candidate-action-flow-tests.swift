@@ -8,7 +8,7 @@ extension InferenceFlowTesting {
         throws
         -> [TestFlowDiagnostic]
     {
-        let input = AssessCandidateAction.Input(
+        let input = Standard.Inferences.AssessCandidateAction.Input(
             goal: "Publish a completed change safely.",
             state: "Implementation and tests are complete.",
             candidate: .init(
@@ -21,7 +21,7 @@ extension InferenceFlowTesting {
             input
         )
         let decodedInput = try JSONDecoder().decode(
-            AssessCandidateAction.Input.self,
+            Standard.Inferences.AssessCandidateAction.Input.self,
             from: encodedInput
         )
 
@@ -31,12 +31,12 @@ extension InferenceFlowTesting {
             "assess-candidate-action input survives typed codec round trip"
         )
         try Expect.equal(
-            AssessCandidateAction.definition.identifier,
-            InferenceIdentifier("assess_candidate_action"),
+            Standard.Inferences.AssessCandidateAction.definition.identifier,
+            InferenceIdentifier("standard.inferences.assess_candidate_action"),
             "assess-candidate-action exposes stable semantic inference identifier"
         )
 
-        let output = AssessCandidateAction.Output(
+        let output = Standard.Inferences.AssessCandidateAction.Output(
             acceptable: true,
             assessment: "The change is tested and ready to publish."
         )
@@ -44,7 +44,7 @@ extension InferenceFlowTesting {
             output
         )
         let decodedOutput = try JSONDecoder().decode(
-            AssessCandidateAction.Output.self,
+            Standard.Inferences.AssessCandidateAction.Output.self,
             from: encodedOutput
         )
 
@@ -55,7 +55,7 @@ extension InferenceFlowTesting {
         )
 
         let schemaData = try JSONEncoder().encode(
-            AssessCandidateAction.Output.jsonschema.jsonvalue
+            Standard.Inferences.AssessCandidateAction.Output.jsonschema.jsonvalue
         )
         let schemaText = String(
             decoding: schemaData,
@@ -76,7 +76,7 @@ extension InferenceFlowTesting {
         return [
             .field(
                 "inference",
-                AssessCandidateAction.definition.identifier.rawValue
+                Standard.Inferences.AssessCandidateAction.definition.identifier.rawValue
             ),
             .field(
                 "candidate",

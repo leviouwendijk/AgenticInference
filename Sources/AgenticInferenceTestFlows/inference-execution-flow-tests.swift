@@ -5,8 +5,7 @@ import TestFlows
 
 private struct FixtureInference: Inference {
     struct Input:
-        Sendable,
-        Codable
+        SemanticInput
     {
         let value: String
     }

@@ -14,8 +14,7 @@ private struct LegacyBudgetAttemptRecord: Encodable {
 
 private struct BudgetFixtureInference: Inference {
     struct Input:
-        Sendable,
-        Codable
+        SemanticInput
     {
         let value: String
     }

@@ -6,8 +6,7 @@ import TestFlows
 
 private struct StrategyRecoveryFixtureInference: Inference {
     struct Input:
-        Sendable,
-        Codable
+        SemanticInput
     {
         let value: String
     }

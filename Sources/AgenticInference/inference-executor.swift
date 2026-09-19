@@ -33,21 +33,11 @@ public struct InferenceExecutor:
         )
     }
 
-    public func execute<InferenceType: Inference>(
-        _ inference: InferenceType.Type,
-        input: InferenceType.Input,
-        realization: InferenceRealizationConfiguration,
-        context: InferenceExecutionContext
-    ) async throws -> InferenceExecutionResult<InferenceType.Output> {
-        let strategy = try strategies.require(
-            realization.strategy
-        )
-
-        return try await strategy.execute(
-            inference,
-            input: input,
-            realization: realization,
-            context: context,
+    public func execute(
+        _ invocation: InferenceInvocation
+    ) async throws -> InferenceInvocationResult {
+        try await invocation.execute(
+            strategies: strategies,
             attempts: attempts
         )
     }

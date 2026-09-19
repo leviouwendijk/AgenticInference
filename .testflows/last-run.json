@@ -3,12 +3,12 @@
   "failed_names" : [
 
   ],
-  "generated_at" : "2026-09-19T10:37:04Z",
+  "generated_at" : "2026-09-19T17:08:43Z",
   "passed" : 19,
   "results" : [
     {
       "display_name" : "inference-substrate",
-      "duration_seconds" : 0.00010800361633300781,
+      "duration_seconds" : 0.00018799304962158203,
       "name" : "inference-substrate",
       "status" : "passed",
       "tags" : [
@@ -19,7 +19,7 @@
     },
     {
       "display_name" : "direct-inference-execution",
-      "duration_seconds" : 0.001237034797668457,
+      "duration_seconds" : 0.0020760297775268555,
       "name" : "direct-inference-execution",
       "status" : "passed",
       "tags" : [
@@ -31,7 +31,7 @@
     },
     {
       "display_name" : "native-reasoning-inference-execution",
-      "duration_seconds" : 3.600120544433594e-05,
+      "duration_seconds" : 7.796287536621094e-05,
       "name" : "native-reasoning-inference-execution",
       "status" : "passed",
       "tags" : [
@@ -43,7 +43,7 @@
     },
     {
       "display_name" : "determine-next-action",
-      "duration_seconds" : 0.00035893917083740234,
+      "duration_seconds" : 0.0005830526351928711,
       "name" : "determine-next-action",
       "status" : "passed",
       "tags" : [
@@ -55,7 +55,7 @@
     },
     {
       "display_name" : "assess-candidate-action",
-      "duration_seconds" : 0.00010001659393310547,
+      "duration_seconds" : 0.00020301342010498047,
       "name" : "assess-candidate-action",
       "status" : "passed",
       "tags" : [
@@ -67,7 +67,7 @@
     },
     {
       "display_name" : "inference-budget-accounting",
-      "duration_seconds" : 0.0016679763793945312,
+      "duration_seconds" : 0.0032889842987060547,
       "name" : "inference-budget-accounting",
       "status" : "passed",
       "tags" : [
@@ -80,7 +80,7 @@
     },
     {
       "display_name" : "sampled-inference-execution",
-      "duration_seconds" : 0.005298018455505371,
+      "duration_seconds" : 0.0055389404296875,
       "name" : "sampled-inference-execution",
       "status" : "passed",
       "tags" : [
@@ -94,7 +94,7 @@
     },
     {
       "display_name" : "refining-inference-execution",
-      "duration_seconds" : 0.0012559890747070312,
+      "duration_seconds" : 0.0012749433517456055,
       "name" : "refining-inference-execution",
       "status" : "passed",
       "tags" : [
@@ -108,7 +108,7 @@
     },
     {
       "display_name" : "inference-realization-recovery-policy",
-      "duration_seconds" : 0.0003590583801269531,
+      "duration_seconds" : 0.0003679990768432617,
       "name" : "inference-realization-recovery-policy",
       "status" : "passed",
       "tags" : [
@@ -131,7 +131,7 @@
     },
     {
       "display_name" : "inference-transport-recovery",
-      "duration_seconds" : 0.00045502185821533203,
+      "duration_seconds" : 0.0004940032958984375,
       "name" : "inference-transport-recovery",
       "status" : "passed",
       "tags" : [
@@ -143,7 +143,7 @@
     },
     {
       "display_name" : "inference-transport-recovery-error-evidence",
-      "duration_seconds" : 0.0001900196075439453,
+      "duration_seconds" : 0.00020205974578857422,
       "name" : "inference-transport-recovery-error-evidence",
       "status" : "passed",
       "tags" : [
@@ -157,7 +157,7 @@
     },
     {
       "display_name" : "inference-transport-classification-propagation",
-      "duration_seconds" : 4.601478576660156e-05,
+      "duration_seconds" : 4.9948692321777344e-05,
       "name" : "inference-transport-classification-propagation",
       "status" : "passed",
       "tags" : [
@@ -170,7 +170,7 @@
     },
     {
       "display_name" : "inference-output-repair-recovery",
-      "duration_seconds" : 0.0002599954605102539,
+      "duration_seconds" : 0.0003110170364379883,
       "name" : "inference-output-repair-recovery",
       "status" : "passed",
       "tags" : [
@@ -183,7 +183,7 @@
     },
     {
       "display_name" : "inference-output-classification-propagation",
-      "duration_seconds" : 6.794929504394531e-05,
+      "duration_seconds" : 7.104873657226562e-05,
       "name" : "inference-output-classification-propagation",
       "status" : "passed",
       "tags" : [
@@ -198,7 +198,7 @@
     },
     {
       "display_name" : "inference-output-repair-budget-failure-evidence",
-      "duration_seconds" : 0.00014197826385498047,
+      "duration_seconds" : 0.00015497207641601562,
       "name" : "inference-output-repair-budget-failure-evidence",
       "status" : "passed",
       "tags" : [
@@ -213,7 +213,7 @@
     },
     {
       "display_name" : "sampled-recovery-transparency",
-      "duration_seconds" : 0.0003509521484375,
+      "duration_seconds" : 0.0003999471664428711,
       "name" : "sampled-recovery-transparency",
       "status" : "passed",
       "tags" : [
@@ -227,7 +227,7 @@
     },
     {
       "display_name" : "refining-transport-recovery-transparency",
-      "duration_seconds" : 0.00014603137969970703,
+      "duration_seconds" : 0.00014901161193847656,
       "name" : "refining-transport-recovery-transparency",
       "status" : "passed",
       "tags" : [
@@ -241,7 +241,7 @@
     },
     {
       "display_name" : "refining-output-repair-transparency",
-      "duration_seconds" : 0.00013494491577148438,
+      "duration_seconds" : 0.00014209747314453125,
       "name" : "refining-output-repair-transparency",
       "status" : "passed",
       "tags" : [

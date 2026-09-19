@@ -1,12 +1,15 @@
 import Agentic
 import AgenticInference
+import Macros
+import Schema
 import AgenticRecovery
 import Foundation
 import TestFlows
 
 private struct TransportRecoveryFixtureInference: Inference {
+    @JSONSchema
     struct Input:
-        SemanticInput
+        Source
     {
         let value: String
     }
@@ -290,8 +293,8 @@ let inferenceTransportRecoveryFlows: [TestFlow] = [
             recovery: policy
         )
 
-        let result = try await executor.execute(
-            TransportRecoveryFixtureInference.self,
+        let result = try await TransportRecoveryFixtureInference.execute(
+            using: executor,
             input: .init(
                 value: "fixture"
             ),
@@ -465,8 +468,8 @@ let inferenceTransportRecoveryFlows: [TestFlow] = [
         let terminalFailure: InferenceExecutionFailure?
 
         do {
-            _ = try await executor.execute(
-                TransportRecoveryFixtureInference.self,
+            _ = try await TransportRecoveryFixtureInference.execute(
+                using: executor,
                 input: .init(
                     value: "fixture"
                 ),
@@ -612,8 +615,8 @@ let inferenceTransportRecoveryFlows: [TestFlow] = [
         let terminalFailure: InferenceExecutionFailure?
 
         do {
-            _ = try await executor.execute(
-                TransportRecoveryFixtureInference.self,
+            _ = try await TransportRecoveryFixtureInference.execute(
+                using: executor,
                 input: .init(
                     value: "fixture"
                 ),

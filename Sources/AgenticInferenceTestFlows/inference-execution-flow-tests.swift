@@ -1,11 +1,14 @@
 import Agentic
 import AgenticInference
+import Macros
+import Schema
 import Foundation
 import TestFlows
 
 private struct FixtureInference: Inference {
+    @JSONSchema
     struct Input:
-        SemanticInput
+        Source
     {
         let value: String
     }
@@ -195,8 +198,8 @@ enum InferenceExecutionFlowTests {
             adapter: "fixture_adapter"
         )
 
-        let result = try await executor.execute(
-            FixtureInference.self,
+        let result = try await FixtureInference.execute(
+            using: executor,
             input: FixtureInference.Input(
                 value: "reason"
             ),
@@ -315,8 +318,8 @@ enum InferenceExecutionFlowTests {
             adapter: "fixture_adapter"
         )
 
-        let result = try await executor.execute(
-            FixtureInference.self,
+        let result = try await FixtureInference.execute(
+            using: executor,
             input: FixtureInference.Input(
                 value: "hello"
             ),

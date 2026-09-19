@@ -1,11 +1,14 @@
 import Agentic
 import AgenticInference
+import Macros
+import Schema
 import Foundation
 import TestFlows
 
 private struct RefiningFixtureInference: Inference {
+    @JSONSchema
     struct Input:
-        SemanticInput
+        Source
     {
         let value: String
     }
@@ -311,8 +314,8 @@ extension InferenceExecutionFlowTests {
             adapter: "refining_fixture_adapter"
         )
 
-        let result = try await executor.execute(
-            RefiningFixtureInference.self,
+        let result = try await RefiningFixtureInference.execute(
+            using: executor,
             input: RefiningFixtureInference.Input(
                 value: "refine"
             ),
@@ -419,8 +422,8 @@ extension InferenceExecutionFlowTests {
         let executionFailure: InferenceExecutionFailure?
 
         do {
-            _ = try await failureExecutor.execute(
-                RefiningFixtureInference.self,
+            _ = try await RefiningFixtureInference.execute(
+                using: failureExecutor,
                 input: .init(
                     value: "terminal-failure"
                 ),
@@ -537,8 +540,8 @@ extension InferenceExecutionFlowTests {
         let guideExecutionFailure: InferenceExecutionFailure?
 
         do {
-            _ = try await guideFailureExecutor.execute(
-                RefiningFixtureInference.self,
+            _ = try await RefiningFixtureInference.execute(
+                using: guideFailureExecutor,
                 input: .init(
                     value: "guide-failure"
                 ),

@@ -1,5 +1,7 @@
 import Agentic
 import AgenticInference
+import Macros
+import Schema
 import Foundation
 import TestFlows
 
@@ -13,8 +15,9 @@ private struct LegacyBudgetAttemptRecord: Encodable {
 }
 
 private struct BudgetFixtureInference: Inference {
+    @JSONSchema
     struct Input:
-        SemanticInput
+        Source
     {
         let value: String
     }
@@ -206,8 +209,8 @@ extension InferenceExecutionFlowTests {
             adapters: BudgetFixtureAdapterResolver()
         )
 
-        let result = try await executor.execute(
-            BudgetFixtureInference.self,
+        let result = try await BudgetFixtureInference.execute(
+            using: executor,
             input: BudgetFixtureInference.Input(
                 value: "budget"
             ),

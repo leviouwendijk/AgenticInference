@@ -1,12 +1,15 @@
 import Agentic
 import AgenticInference
+import Macros
+import Schema
 import AgenticRecovery
 import Foundation
 import TestFlows
 
 private struct OutputRepairFixtureInference: Inference {
+    @JSONSchema
     struct Input:
-        SemanticInput
+        Source
     {
         let value: String
     }
@@ -345,8 +348,8 @@ let inferenceOutputRepairRecoveryFlows: [TestFlow] = [
             recovery: policy
         )
 
-        let result = try await executor.execute(
-            OutputRepairFixtureInference.self,
+        let result = try await OutputRepairFixtureInference.execute(
+            using: executor,
             input: .init(
                 value: "fixture"
             ),
@@ -507,8 +510,8 @@ let inferenceOutputRepairRecoveryFlows: [TestFlow] = [
         let terminalFailure: InferenceExecutionFailure?
 
         do {
-            _ = try await executor.execute(
-                OutputRepairFixtureInference.self,
+            _ = try await OutputRepairFixtureInference.execute(
+                using: executor,
                 input: .init(
                     value: "fixture"
                 ),
@@ -728,8 +731,8 @@ let inferenceOutputRepairRecoveryFlows: [TestFlow] = [
         let terminalFailure: InferenceExecutionFailure?
 
         do {
-            _ = try await executor.execute(
-                OutputRepairFixtureInference.self,
+            _ = try await OutputRepairFixtureInference.execute(
+                using: executor,
                 input: .init(
                     value: "fixture"
                 ),

@@ -5,7 +5,8 @@ import Schema
 extension Standard.Inferences {
     @Inference
     public struct DetermineNextAction {
-        public struct Candidate: SemanticOutput, Hashable {
+        @JSONSchema
+        public struct Candidate: Product, Hashable {
             public var identifier: String
             public var description: String
 
@@ -18,15 +19,16 @@ extension Standard.Inferences {
             }
         }
 
-        public struct Input: Hashable {
+        @JSONSchema
+        public struct Input: Source, Hashable {
             public var goal: String
             public var state: String
-            public var candidates: [Candidate]
+            public var candidates: [Standard.Inferences.DetermineNextAction.Candidate]
 
             public init(
                 goal: String,
                 state: String,
-                candidates: [Candidate]
+                candidates: [Standard.Inferences.DetermineNextAction.Candidate]
             ) {
                 self.goal = goal
                 self.state = state
@@ -35,7 +37,7 @@ extension Standard.Inferences {
         }
 
         @JSONSchema
-        public struct Output: Hashable {
+        public struct Output: Result, Hashable {
             /// Identifier of the candidate that should be performed next.
             public var selectedActionIdentifier: String
 

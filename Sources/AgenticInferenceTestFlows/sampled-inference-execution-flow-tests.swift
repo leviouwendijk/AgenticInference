@@ -1,11 +1,14 @@
 import Agentic
 import AgenticInference
+import Macros
+import Schema
 import Foundation
 import TestFlows
 
 private struct SampledFixtureInference: Inference {
+    @JSONSchema
     struct Input:
-        SemanticInput
+        Source
     {
         let value: String
     }
@@ -266,8 +269,8 @@ extension InferenceExecutionFlowTests {
             adapter: "sampled_fixture_adapter"
         )
 
-        let result = try await executor.execute(
-            SampledFixtureInference.self,
+        let result = try await SampledFixtureInference.execute(
+            using: executor,
             input: SampledFixtureInference.Input(
                 value: "sample"
             ),
@@ -330,8 +333,8 @@ extension InferenceExecutionFlowTests {
             adapters: SampledFixtureAdapterResolver(),
             sampleEvaluator: evaluator
         )
-        let cappedResult = try await cappedExecutor.execute(
-            SampledFixtureInference.self,
+        let cappedResult = try await SampledFixtureInference.execute(
+            using: cappedExecutor,
             input: SampledFixtureInference.Input(
                 value: "token-capped"
             ),
@@ -388,8 +391,8 @@ extension InferenceExecutionFlowTests {
         let executionFailure: InferenceExecutionFailure?
 
         do {
-            _ = try await failureExecutor.execute(
-                SampledFixtureInference.self,
+            _ = try await SampledFixtureInference.execute(
+                using: failureExecutor,
                 input: .init(
                     value: "terminal-failure"
                 ),
@@ -496,8 +499,8 @@ extension InferenceExecutionFlowTests {
         let evaluatorExecutionFailure: InferenceExecutionFailure?
 
         do {
-            _ = try await evaluatorFailureExecutor.execute(
-                SampledFixtureInference.self,
+            _ = try await SampledFixtureInference.execute(
+                using: evaluatorFailureExecutor,
                 input: .init(
                     value: "evaluator-failure"
                 ),

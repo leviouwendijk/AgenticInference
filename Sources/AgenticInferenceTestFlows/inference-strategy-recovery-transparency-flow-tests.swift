@@ -1,12 +1,15 @@
 import Agentic
 import AgenticInference
+import Macros
+import Schema
 import AgenticRecovery
 import Foundation
 import TestFlows
 
 private struct StrategyRecoveryFixtureInference: Inference {
+    @JSONSchema
     struct Input:
-        SemanticInput
+        Source
     {
         let value: String
     }
@@ -530,8 +533,8 @@ private func runSampledTransportRecoveryTransparency()
         adapter: "strategy_recovery_fixture_adapter"
     )
 
-    let result = try await executor.execute(
-        StrategyRecoveryFixtureInference.self,
+    let result = try await StrategyRecoveryFixtureInference.execute(
+        using: executor,
         input: .init(
             value: "sample"
         ),
@@ -667,8 +670,8 @@ private func runRefiningTransportRecoveryTransparency()
         adapter: "strategy_recovery_fixture_adapter"
     )
 
-    let result = try await executor.execute(
-        StrategyRecoveryFixtureInference.self,
+    let result = try await StrategyRecoveryFixtureInference.execute(
+        using: executor,
         input: .init(
             value: "refine"
         ),
@@ -814,8 +817,8 @@ private func runRefiningOutputRepairTransparency()
         adapter: "strategy_recovery_fixture_adapter"
     )
 
-    let result = try await executor.execute(
-        StrategyRecoveryFixtureInference.self,
+    let result = try await StrategyRecoveryFixtureInference.execute(
+        using: executor,
         input: .init(
             value: "repair"
         ),

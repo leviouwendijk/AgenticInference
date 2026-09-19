@@ -5,9 +5,9 @@ import Schema
 extension Standard.Inferences {
     @Inference
     public struct AssessCandidateAction {
+        @JSONSchema
         public struct Input:
-            Sendable,
-            Codable,
+            Source,
             Hashable
         {
             public var goal: String
@@ -27,8 +27,7 @@ extension Standard.Inferences {
 
         @JSONSchema
         public struct Output:
-            Sendable,
-            Codable,
+            Result,
             Hashable
         {
             /// Whether the candidate is appropriate to perform next.

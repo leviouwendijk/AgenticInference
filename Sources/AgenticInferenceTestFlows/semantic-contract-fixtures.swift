@@ -2,6 +2,5 @@ import Agentic
 import Schema
 
 extension String:
-    @retroactive SemanticInput,
-    @retroactive InferredOutput
+    @retroactive Contract.Semantic.SchematizableObject
 {}

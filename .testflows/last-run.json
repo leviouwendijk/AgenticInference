@@ -3,12 +3,12 @@
   "failed_names" : [
 
   ],
-  "generated_at" : "2026-09-12T15:18:47Z",
-  "passed" : 8,
+  "generated_at" : "2026-09-19T10:37:04Z",
+  "passed" : 19,
   "results" : [
     {
       "display_name" : "inference-substrate",
-      "duration_seconds" : 0.00024509429931640625,
+      "duration_seconds" : 0.00010800361633300781,
       "name" : "inference-substrate",
       "status" : "passed",
       "tags" : [
@@ -19,7 +19,7 @@
     },
     {
       "display_name" : "direct-inference-execution",
-      "duration_seconds" : 0.0005640983581542969,
+      "duration_seconds" : 0.001237034797668457,
       "name" : "direct-inference-execution",
       "status" : "passed",
       "tags" : [
@@ -31,7 +31,7 @@
     },
     {
       "display_name" : "native-reasoning-inference-execution",
-      "duration_seconds" : 2.4080276489257812e-05,
+      "duration_seconds" : 3.600120544433594e-05,
       "name" : "native-reasoning-inference-execution",
       "status" : "passed",
       "tags" : [
@@ -43,7 +43,7 @@
     },
     {
       "display_name" : "determine-next-action",
-      "duration_seconds" : 0.00032007694244384766,
+      "duration_seconds" : 0.00035893917083740234,
       "name" : "determine-next-action",
       "status" : "passed",
       "tags" : [
@@ -55,7 +55,7 @@
     },
     {
       "display_name" : "assess-candidate-action",
-      "duration_seconds" : 8.404254913330078e-05,
+      "duration_seconds" : 0.00010001659393310547,
       "name" : "assess-candidate-action",
       "status" : "passed",
       "tags" : [
@@ -67,7 +67,7 @@
     },
     {
       "display_name" : "inference-budget-accounting",
-      "duration_seconds" : 0.0006099939346313477,
+      "duration_seconds" : 0.0016679763793945312,
       "name" : "inference-budget-accounting",
       "status" : "passed",
       "tags" : [
@@ -80,7 +80,7 @@
     },
     {
       "display_name" : "sampled-inference-execution",
-      "duration_seconds" : 0.00016999244689941406,
+      "duration_seconds" : 0.005298018455505371,
       "name" : "sampled-inference-execution",
       "status" : "passed",
       "tags" : [
@@ -94,7 +94,7 @@
     },
     {
       "display_name" : "refining-inference-execution",
-      "duration_seconds" : 0.00043892860412597656,
+      "duration_seconds" : 0.0012559890747070312,
       "name" : "refining-inference-execution",
       "status" : "passed",
       "tags" : [
@@ -105,9 +105,157 @@
         "refining",
         "strategy"
       ]
+    },
+    {
+      "display_name" : "inference-realization-recovery-policy",
+      "duration_seconds" : 0.0003590583801269531,
+      "name" : "inference-realization-recovery-policy",
+      "status" : "passed",
+      "tags" : [
+        "agentic-inference",
+        "policy",
+        "realization",
+        "recovery"
+      ]
+    },
+    {
+      "display_name" : "inference-realization-recovery-optional",
+      "duration_seconds" : 9.5367431640625e-07,
+      "name" : "inference-realization-recovery-optional",
+      "status" : "passed",
+      "tags" : [
+        "agentic-inference",
+        "compatibility",
+        "recovery"
+      ]
+    },
+    {
+      "display_name" : "inference-transport-recovery",
+      "duration_seconds" : 0.00045502185821533203,
+      "name" : "inference-transport-recovery",
+      "status" : "passed",
+      "tags" : [
+        "agentic-inference",
+        "recovery",
+        "retry",
+        "transport"
+      ]
+    },
+    {
+      "display_name" : "inference-transport-recovery-error-evidence",
+      "duration_seconds" : 0.0001900196075439453,
+      "name" : "inference-transport-recovery-error-evidence",
+      "status" : "passed",
+      "tags" : [
+        "agentic-inference",
+        "errors",
+        "evidence",
+        "exhaustion",
+        "recovery",
+        "transport"
+      ]
+    },
+    {
+      "display_name" : "inference-transport-classification-propagation",
+      "duration_seconds" : 4.601478576660156e-05,
+      "name" : "inference-transport-classification-propagation",
+      "status" : "passed",
+      "tags" : [
+        "agentic-inference",
+        "classification",
+        "propagation",
+        "recovery",
+        "transport"
+      ]
+    },
+    {
+      "display_name" : "inference-output-repair-recovery",
+      "duration_seconds" : 0.0002599954605102539,
+      "name" : "inference-output-repair-recovery",
+      "status" : "passed",
+      "tags" : [
+        "agentic-inference",
+        "decoding",
+        "recovery",
+        "repair",
+        "structured-output"
+      ]
+    },
+    {
+      "display_name" : "inference-output-classification-propagation",
+      "duration_seconds" : 6.794929504394531e-05,
+      "name" : "inference-output-classification-propagation",
+      "status" : "passed",
+      "tags" : [
+        "agentic-inference",
+        "classification",
+        "decoding",
+        "evidence",
+        "propagation",
+        "recovery",
+        "structured-output"
+      ]
+    },
+    {
+      "display_name" : "inference-output-repair-budget-failure-evidence",
+      "duration_seconds" : 0.00014197826385498047,
+      "name" : "inference-output-repair-budget-failure-evidence",
+      "status" : "passed",
+      "tags" : [
+        "agentic-inference",
+        "budget",
+        "decoding",
+        "evidence",
+        "recovery",
+        "repair",
+        "structured-output"
+      ]
+    },
+    {
+      "display_name" : "sampled-recovery-transparency",
+      "duration_seconds" : 0.0003509521484375,
+      "name" : "sampled-recovery-transparency",
+      "status" : "passed",
+      "tags" : [
+        "agentic-inference",
+        "recovery",
+        "sampled",
+        "semantic-attempt",
+        "strategy",
+        "transport"
+      ]
+    },
+    {
+      "display_name" : "refining-transport-recovery-transparency",
+      "duration_seconds" : 0.00014603137969970703,
+      "name" : "refining-transport-recovery-transparency",
+      "status" : "passed",
+      "tags" : [
+        "agentic-inference",
+        "recovery",
+        "refining",
+        "semantic-attempt",
+        "strategy",
+        "transport"
+      ]
+    },
+    {
+      "display_name" : "refining-output-repair-transparency",
+      "duration_seconds" : 0.00013494491577148438,
+      "name" : "refining-output-repair-transparency",
+      "status" : "passed",
+      "tags" : [
+        "agentic-inference",
+        "recovery",
+        "refining",
+        "repair",
+        "semantic-attempt",
+        "strategy",
+        "structured-output"
+      ]
     }
   ],
   "skipped" : 0,
   "title" : "AgenticInference flow tests",
-  "total" : 8
+  "total" : 19
 }

@@ -5,11 +5,7 @@ import Schema
 extension Standard.Inferences {
     @Inference
     public struct DetermineNextAction {
-        public struct Candidate:
-            Sendable,
-            Codable,
-            Hashable
-        {
+        public struct Candidate: SemanticOutput, Hashable {
             public var identifier: String
             public var description: String
 
@@ -22,11 +18,7 @@ extension Standard.Inferences {
             }
         }
 
-        public struct Input:
-            Sendable,
-            Codable,
-            Hashable
-        {
+        public struct Input: Hashable {
             public var goal: String
             public var state: String
             public var candidates: [Candidate]
@@ -43,11 +35,7 @@ extension Standard.Inferences {
         }
 
         @JSONSchema
-        public struct Output:
-            Sendable,
-            Codable,
-            Hashable
-        {
+        public struct Output: Hashable {
             /// Identifier of the candidate that should be performed next.
             public var selectedActionIdentifier: String
 
@@ -58,7 +46,8 @@ extension Standard.Inferences {
             }
         }
 
-        public static let purpose =
-            "Select the most appropriate next action from the supplied candidates for the current goal and state."
+        public static let purpose = """
+        Select the most appropriate next action from the supplied candidates for the current goal and state.
+        """
     }
 }
